@@ -1,4 +1,5 @@
 from __future__ import print_function, division
+from functools import partial
 from collections import namedtuple
 import argparse
 import mahotas
@@ -11,6 +12,7 @@ import numpy as np
 def wall_smash_image(edges, shift_right=True):
     """Mutates a numpy array of an image so that the subject
     is smashed to the right or left edge."""
+    #TODO: broken temporarily
     for left, right, negspace in edges:
         rowlen = right - left
         if not rowlen:
@@ -19,9 +21,16 @@ def wall_smash_image(edges, shift_right=True):
         row[:-rowlen] = negspace
 
 
-def get_ascii_edges(edges, char=u"@"):
-    return "\n".join((u" " * left) + (char * (right - left))
-                     for left, right, _ in edges)
+def gen_ascii_edges(edges, char=u"@"):
+    for edge_group in edges:
+        prev_right = 0
+        for left, right, _ in edge_group:
+            if not right:
+                continue
+            yield u" " * (left - prev_right)
+            yield char * (right - left)
+            prev_right = right
+        yield u"\n"
 
 
 ##########################
@@ -38,7 +47,7 @@ def iter_subject_edges(
     the subject is on a background with significantly different RGB values.
     Yields `row_data` instances."""
     for row in img:
-        yield _find_edge_indices(row, neg_sample, threshold)
+        yield (_find_edge_indices(row, neg_sample, threshold),)
 
 
 def iter_two_subject_edges(
@@ -47,9 +56,10 @@ def iter_two_subject_edges(
     image and searches both halves for edges."""
     width = img.shape[1]
     halfway = width // 2
+    find_edges = partial(_find_edge_indices,
+                         neg_sample=neg_sample, threshold=threshold)
     for row in img:
-        yield map(_find_edg_indices, (row[:halfway], row[halfway:]),
-                  neg_sample, threshold)
+        yield map(find_edges, (row[:halfway], row[halfway:]))
 
 
 def _find_edge_indices(row, neg_sample, threshold):
@@ -80,18 +90,20 @@ parser.add_argument("--output-type", type=str,
 def run():
     args = parser.parse_args()
     img = mahotas.imread(args.target)
-    im2 = img[::, ::-1]
-    mahotas.imsave("floop", im2)
+    #im2 = img[::, ::-1]
+
     if args.smash:
         if args.smash == "left":
             raise NotImplementedError("Can't smash left yet")
         elif args.smash == "right":
+            edges = iter_subject_edges(img)
             wall_smash_image(img)
         elif args.smash == "center":
-            raise NotImplementedError("Can't smash center yet")
+            edges = iter_two_subject_edges(img)
+    else:
+        edges = iter_subject_edges(img)  # TODO: hack for testing
     mahotas.imsave("bleeeeup", img)
-    edges = iter_subject_edges(img)
-    print(get_ascii_edges(edges, char=u"@"))
+    print("".join(gen_ascii_edges(edges, char=u"@")))
 
 
 if __name__ == "__main__":
