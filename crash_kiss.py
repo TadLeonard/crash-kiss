@@ -1,7 +1,7 @@
 from __future__ import print_function, division
-from functools import partial
-from collections import namedtuple
 import argparse
+from collections import namedtuple
+from functools import partial
 import mahotas
 import numpy as np
 
@@ -9,16 +9,49 @@ import numpy as np
 ##################
 # Mutating images
 
-def wall_smash_image(edges, shift_right=True):
+def center_smash_image(edges, img):
+    """The original "crash kiss" method used to smash two people's
+    profiles together in a grotesque "kiss". The rule is: move the
+    subjects of each row towards each other until they touch.
+    Write over the vacated space with whatever the row's negative space
+    is (probably white or transparent pixels)."""
+    #for row_data_group, row in _iter_subject_rows(edges, img):
+    #TODO: not yet working
+
+
+def wall_smash_image(edges, img):
     """Mutates a numpy array of an image so that the subject
-    is smashed to the right or left edge."""
-    #TODO: broken temporarily
-    for left, right, negspace in edges:
-        rowlen = right - left
-        if not rowlen:
-            continue
-        row[-rowlen:] = row[left: right]
-        row[:-rowlen] = negspace
+    is smashed to an edge of the image boarders."""
+    for row_data_group, row in _iter_subject_rows(edges, img):
+        _shift_row_right(row_data_group, row)
+
+
+def _shift_row_right(edges, row):
+    target_idx = row.shape[0]  # shift to end of img initially
+    for edge in edges:
+        sub_data_l, sub_data_r = _get_shifted_indices(edge, target_idx)
+        row[sub_data_l: sub_data_r] = row[edge.left: edge.right]
+        target_idx = sub_data_l
+
+    # We've shifted the subject(s) over, now we need to fill
+    # the rest of the row with negative space
+    row[:sub_data_l] = edge.neg_space
+
+
+def _get_shifted_indices(edge, target_idx):
+    rowlen = edge.right - edge.left
+    sub_data_l = target_idx - rowlen
+    sub_data_r = target_idx
+    return sub_data_l, sub_data_r
+
+
+def _iter_subject_rows(edges, img):
+    """Iterate over edges, pixel rows that contain foreground info
+    (i.e. not all whitespace)."""
+    #TODO: This doesn't make sense for the multiple subject case
+    for row_data_group, row in zip(edges, img):
+        if any(r - l for l, r, _ in row_data_group):
+            yield row_data_group, row
 
 
 def gen_ascii_edges(edges, char=u"@"):
@@ -62,7 +95,18 @@ def iter_two_subject_edges(
         yield map(find_edges, (row[:halfway], row[halfway:]))
 
 
+def iter_all_subject_edges(
+        img, neg_sample=DEFAULT_NEG_SAMPLE, threshold=DEFAULT_THRESH):
+    """Like `iter_subject_edges`, but for any number of
+    subjects. Detects ALL edges based on initial (leftmost) whitespace."""
+    for row in img:
+        neg_space = np.mean(row[:neg_sample], axis=0)
+        pos_space = np.all(np.abs(row - neg_space) > threshold, axis=1)
+
+
 def _find_edge_indices(row, neg_sample, threshold):
+    """Find edges of a single subject. Naively assume only a left
+    and a right edge are present and that there's nothing in between."""
     neg_space = np.mean(row[:neg_sample], axis=0)
     pos_space = np.all(np.abs(row - neg_space) > threshold, axis=1)
     left_edge = np.argmax(pos_space)
@@ -102,7 +146,6 @@ def run():
             edges = iter_two_subject_edges(img)
     else:
         edges = iter_subject_edges(img)  # TODO: hack for testing
-    mahotas.imsave("bleeeeup", img)
     print("".join(gen_ascii_edges(edges, char=u"@")))
 
 
