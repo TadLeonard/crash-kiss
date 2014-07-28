@@ -54,14 +54,14 @@ def _iter_subject_rows(edges, img):
             yield row_data_group, row
 
 
-def gen_ascii_edges(edges, char=u"@"):
+def gen_char_edges(edges, char=u"@", scale=1.0):
     for edge_group in edges:
         prev_right = 0
         for left, right, _ in edge_group:
             if not right:
                 continue
-            yield u" " * (left - prev_right)
-            yield char * (right - left)
+            yield u" " * int((left - prev_right) * scale)
+            yield char * int((right - left) * scale)
             prev_right = right
         yield u"\n"
 
@@ -128,7 +128,12 @@ parser.add_argument("--threshold", default=DEFAULT_THRESH, type=int)
 parser.add_argument("--smash", type=str,
                     choices=("left", "right", "center"), default=None)
 parser.add_argument("--output-type", type=str,
-                    choices=("ascii", "gif", "img"), default="ascii")
+                    choices=("char", "gif", "img"), default="char")
+parser.add_argument("--char-scale", type=float, default=1.0)
+parser.add_argument("-l", "--smash_left", action="store_true",
+                    default=False)
+parser.add_argument("-v", "--smash_up", action="store_true",
+                    default=False)
 
 
 def run():
@@ -146,7 +151,9 @@ def run():
             edges = iter_two_subject_edges(img)
     else:
         edges = iter_subject_edges(img)  # TODO: hack for testing
-    print("".join(gen_ascii_edges(edges, char=u"@")))
+    char_img = gen_char_edges(edges, char=u"@", scale=args.char_scale)
+    print("".join(char_img))
+
 
 
 if __name__ == "__main__":
