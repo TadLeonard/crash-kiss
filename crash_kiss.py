@@ -69,7 +69,7 @@ def gen_char_edges(edges, char=u"@", scale=1.0):
 _L_EDGE_REVEAL = [0, 255, 0]
 _R_EDGE_REVEAL = [255, 0, 0]
 
-def reveal_edges(edges, img, inplace=True):
+def reveal_edges(edges, img, inplace=False):
     """Highlights the edges of an image with green (left edge)
     and red (right edge)"""
     new_img = img.copy() if not inplace else img
@@ -172,6 +172,8 @@ def run():
     elif len(imgs) > 1:
         img = combine_images(imgs, axis=args.combine_axis)
 
+    # This is where we should process each image for edge detection...
+
     # After this point we're always working with one big, combined image
     if args.smash:
         if args.smash == "left":
@@ -183,13 +185,13 @@ def run():
         edges = iter_subject_edges(img)  # TODO: hack for testing
 
     # Various things to do with our manipulated image
+    if args.charout:
+        char_img = gen_char_edges(edges, char=u"@", scale=args.char_scale)
+        print("".join(char_img))
     if args.reveal_edges:
         reveal_edges(edges, img)
     if args.outfile:
         mahotas.imsave(args.outfile, reveal_edges(edges, img))
-    if args.charout:
-        char_img = gen_char_edges(edges, char=u"@", scale=args.char_scale)
-        print("".join(char_img))
 
 
 
