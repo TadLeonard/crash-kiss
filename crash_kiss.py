@@ -66,12 +66,26 @@ def gen_char_edges(edges, char=u"@", scale=1.0):
         yield u"\n"
 
 
+_L_EDGE_REVEAL = [0, 255, 0]
+_R_EDGE_REVEAL = [255, 0, 0]
+
+def reveal_edges(edges, img, inplace=True):
+    """Highlights the edges of an image with green (left edge)
+    and red (right edge)"""
+    new_img = img.copy() if not inplace else img
+    for row, edge_group in zip(new_img, edges):
+        for l, r, neg in edge_group:
+            row[l-1:l+1] = _L_EDGE_REVEAL
+            row[r-1:r+1] = _R_EDGE_REVEAL
+    return new_img
+
+
 ##########################
 # Finding subject's edges
 
 row_data = namedtuple("row_data", "left_idx right_idx neg_space")
 DEFAULT_THRESH = 15
-DEFAULT_NEG_SAMPLE = 15
+DEFAULT_NEG_SAMPLE = 5
 
 
 def iter_subject_edges(
@@ -107,15 +121,20 @@ def iter_all_subject_edges(
 def _find_edge_indices(row, neg_sample, threshold):
     """Find edges of a single subject. Naively assume only a left
     and a right edge are present and that there's nothing in between."""
-    neg_space = np.mean(row[:neg_sample], axis=0)
-    pos_space = np.all(np.abs(row - neg_space) > threshold, axis=1)
+    neg_space_l = np.mean(row[:neg_sample], axis=0)
+    neg_space_r = np.mean(row[-neg_sample:], axis=0)
+    pos_space = np.all(np.abs(row - neg_space_l) > threshold, axis=1)
     left_edge = np.argmax(pos_space)
-    right_edge = np.argmax(pos_space[::-1])
+    if np.any(np.abs(neg_space_r - neg_space_l) > max(threshold // 2, 1)):
+        pos_space_r = np.all(
+            np.abs(row[left_edge:] - neg_space_r) > threshold, axis=1)
+        right_edge = np.argmax(pos_space_r[::-1])
+    else:
+        right_edge = np.argmax(pos_space[::-1])
     if right_edge:
         width = row.shape[0]
         right_edge = width - right_edge
-    return row_data(left_edge, right_edge, neg_space)
-
+    return row_data(left_edge, right_edge, neg_space_l)
 
 
 ##############
@@ -139,7 +158,6 @@ parser.add_argument("-v", "--smash_up", action="store_true",
 def run():
     args = parser.parse_args()
     img = mahotas.imread(args.target)
-    #im2 = img[::, ::-1]
 
     if args.smash:
         if args.smash == "left":
@@ -151,8 +169,12 @@ def run():
             edges = iter_two_subject_edges(img)
     else:
         edges = iter_subject_edges(img)  # TODO: hack for testing
-    char_img = gen_char_edges(edges, char=u"@", scale=args.char_scale)
-    print("".join(char_img))
+    #char_img = gen_char_edges(edges, char=u"@", scale=args.char_scale)
+    #print("".join(char_img))
+    if args.reveal_edges:
+        reveal_edges(edges, img)
+    if args.output:
+        mahotas.imsave(args.output, reveal_edges(edges, img))
 
 
 
