@@ -15,8 +15,6 @@ def center_smash_image(edges, img):
     subjects of each row towards each other until they touch.
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
-    #for row_data_group, row in _iter_subject_rows(edges, img):
-    #TODO: not yet working
 
 
 def wall_smash_image(edges, img):
@@ -29,20 +27,15 @@ def wall_smash_image(edges, img):
 def _shift_row_right(edges, row):
     target_idx = row.shape[0]  # shift to end of img initially
     for edge in edges:
-        sub_data_l, sub_data_r = _get_shifted_indices(edge, target_idx)
-        row[sub_data_l: sub_data_r] = row[edge.left: edge.right]
+        rowlen = edge.right_idx - edge.left_idx
+        sub_data_l = target_idx - rowlen
+        sub_data_r = target_idx
+        row[sub_data_l: sub_data_r] = row[edge.left_idx: edge.right_idx]
         target_idx = sub_data_l
 
     # We've shifted the subject(s) over, now we need to fill
     # the rest of the row with negative space
     row[:sub_data_l] = edge.neg_space
-
-
-def _get_shifted_indices(edge, target_idx):
-    rowlen = edge.right - edge.left
-    sub_data_l = target_idx - rowlen
-    sub_data_r = target_idx
-    return sub_data_l, sub_data_r
 
 
 def _iter_subject_rows(edges, img):
@@ -173,26 +166,23 @@ def run():
         img = combine_images(imgs, axis=args.combine_axis)
 
     # This is where we should process each image for edge detection...
+    edges = iter_subject_edges(img, threshold=args.threshold)
 
     # After this point we're always working with one big, combined image
     if args.smash:
         if args.smash == "left":
             raise NotImplementedError("Can't smash left yet")
         elif args.smash == "right":
-            edges = iter_subject_edges(img)
-            wall_smash_image(img)
-    else:
-        edges = iter_subject_edges(img)  # TODO: hack for testing
+            wall_smash_image(edges, img)
 
     # Various things to do with our manipulated image
     if args.charout:
         char_img = gen_char_edges(edges, char=u"@", scale=args.char_scale)
         print("".join(char_img))
     if args.reveal_edges:
-        reveal_edges(edges, img)
+        reveal_edges(edges, img, inplace=True)
     if args.outfile:
         mahotas.imsave(args.outfile, reveal_edges(edges, img))
-
 
 
 if __name__ == "__main__":
