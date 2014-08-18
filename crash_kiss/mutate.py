@@ -45,6 +45,7 @@ def _iter_subject_rows(edges, img):
 _L_EDGE_REVEAL = [0, 255, 0]
 _R_EDGE_REVEAL = [255, 0, 0]
 
+
 def reveal_edges(edges, img, inplace=False):
     """Highlights the edges of an image with green (left edge)
     and red (right edge)"""
