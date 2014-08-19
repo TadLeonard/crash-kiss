@@ -13,18 +13,20 @@ parser.add_argument("targets", nargs="+")
 parser.add_argument("--threshold",
                     default=edge.DEFAULT_THRESH, type=int)
 parser.add_argument("-s", "--smash", choices=("center", "wall"))
-parser.add_argument("-d", "--direction", default="left",
-                    choices=("left", "right", "up", "down"))
-parser.add_argument("--char-scale", type=float, default=1.0)
+parser.add_argument("-d", "--direction", default="lr",
+                    help="'ud' up-to-down, 'rl' for right-to-left, etc",
+                    choices=("lr", "rl", "ud", "du"))
 parser.add_argument("-a", "--combine-axis",
                     choices=("vertical", "horizontal"), default="horizontal")
 parser.add_argument("-o", "--outfile", default=None)
-parser.add_argument("-c", "--charout", action="store_true")
-parser.add_argument("-e", "--reveal-edges", action="store_true")
+debug = parser.add_argument_group("debugging")
+debug.add_argument("-c", "--charout", action="store_true")
+debug.add_argument("--char-scale", type=float, default=1.0)
+debug.add_argument("-e", "--reveal-edges", action="store_true")
 
 
 def run():
-	# Parse args, combine images passed to ckiss into a single image
+    # Parse args, combine images passed to ckiss into a single image
     args = parser.parse_args()
     imgs = map(mahotas.imread, args.targets)
     if not imgs:
@@ -34,26 +36,33 @@ def run():
     elif len(imgs) > 1:
         img = combine_images(imgs, axis=args.combine_axis)
 
-	# change the orientation of the image if a non-left direction is specified
-	if args.direction != "left":
-		mutate.invert(img, args.direction)
+    # change the orientation of the image if a non-left direction is specified
+    if args.direction == "lr":
+        working_img = mutate.orient_left_to_right(img)
+    elif args.direction == "rl":
+        working_img = mutate.orient_right_to_left(img)
+    elif args.direction == "ud":
+        working_img = mutate.orient_up_to_down(img)
+    elif args.direction == "du":
+        working_img = mutate.orient_down_to_up(img)
 
     # This is where we should process each image for edge detection...
-    edges = list(edge.iter_subject_edges(img, threshold=args.threshold))
+    edges = edge.iter_subject_edges(working_img, threshold=args.threshold)
+    edges = list(edges)  # we'll reuse our  dges if multiple mutations are used
 
     # After this point we're always working with one big, combined image
     if args.smash:
         if args.smash == "center":
             raise NotImplementedError("Can't center smash yet")
         elif args.smash == "wall":
-            mutate.wall_smash_image(edges, img)
+            mutate.wall_smash_image(edges, working_img)
 
     # Various things to do with the result of our image mutations
     if args.charout:
         char_img = util.textify_edges(edges, char=u"@", scale=args.char_scale)
         print("".join(char_img))
     if args.reveal_edges:
-        mutate.reveal_edges(edges, img, inplace=True)
+        mutate.reveal_edges(edges, working_img, inplace=True)
     if args.outfile:
         mahotas.imsave(args.outfile, img)
 
