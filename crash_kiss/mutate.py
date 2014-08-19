@@ -41,7 +41,6 @@ def _iter_subject_rows(edges, img):
             yield row_data_group, row
 
 
-
 _L_EDGE_REVEAL = [0, 255, 0]
 _R_EDGE_REVEAL = [255, 0, 0]
 
@@ -49,7 +48,7 @@ _R_EDGE_REVEAL = [255, 0, 0]
 def reveal_edges(edges, img, inplace=False):
     """Highlights the edges of an image with green (left edge)
     and red (right edge)"""
-    new_img = img.copy() if not inplace else img
+    new_img = img if inplace else img.copy()
     for row, edge_group in zip(new_img, edges):
         for l, r, neg in edge_group:
             row[l-1: l+1] = _L_EDGE_REVEAL
@@ -57,10 +56,46 @@ def reveal_edges(edges, img, inplace=False):
     return new_img
 
 
-def combine_images(imgs, axis="horizontal"):
-    axis = 1 if axis == "horizontal" else 0
+def combine_images(imgs, horizontal=True):
+    axis = 1 if horizontal else 0
     combined = imgs[0]
     for img in imgs[1:]:
         combined = np.append(combined, img, axis=axis)
     return combined
+
+
+def orient_right_to_left(img):
+    return invert_horizontal(img)
+
+
+def orient_left_to_right(img):
+    return img
+
+
+def orient_down_to_up(img):
+    return rotate_cw(img)
+
+
+def orient_up_to_down(img):
+    return rotate_ccw(img)
+
+
+def invert_horizontal(img):
+    return img[::, ::-1]
+
+
+def invert_vertical(img):
+    return img[::-1]
+
+
+def rotate_180(img):
+    return img[::-1, ::-1]
+
+
+def rotate_ccw(img):
+    return img.swapaxes(0, 1)
+
+
+def rotate_cw(img):
+    return rotate_180(img).swapaxes(0, 1)
 
