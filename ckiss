@@ -12,15 +12,10 @@ parser = argparse.ArgumentParser(description="Crash images into things")
 parser.add_argument("targets", nargs="+")
 parser.add_argument("--threshold",
                     default=edge.DEFAULT_THRESH, type=int)
-parser.add_argument("-s", "--smash", type=str,
-                    choices=("left", "right"), default=None)
-parser.add_argument("--output-type", type=str,
-                    choices=("char", "gif", "img"), default="img")
-parser.add_argument("--char-scale", type=float, default=1.0)
+parser.add_argument("-s", "--smash", choices=("center", "wall"))
 parser.add_argument("-d", "--direction", default="left",
                     choices=("left", "right", "up", "down"))
-parser.add_argument("-v", "--smash_up", action="store_true",
-                    default=False)
+parser.add_argument("--char-scale", type=float, default=1.0)
 parser.add_argument("-a", "--combine-axis",
                     choices=("vertical", "horizontal"), default="horizontal")
 parser.add_argument("-o", "--outfile", default=None)
@@ -39,14 +34,18 @@ def run():
     elif len(imgs) > 1:
         img = combine_images(imgs, axis=args.combine_axis)
 
+	# change the orientation of the image if a non-left direction is specified
+	if args.direction != "left":
+		mutate.invert(img, args.direction)
+
     # This is where we should process each image for edge detection...
     edges = list(edge.iter_subject_edges(img, threshold=args.threshold))
 
     # After this point we're always working with one big, combined image
     if args.smash:
-        if args.smash == "left":
-            raise NotImplementedError("Can't smash left yet")
-        elif args.smash == "right":
+        if args.smash == "center":
+            raise NotImplementedError("Can't center smash yet")
+        elif args.smash == "wall":
             mutate.wall_smash_image(edges, img)
 
     # Various things to do with the result of our image mutations
