@@ -7,36 +7,41 @@ from collections import namedtuple
 import numpy as np
 
 
-
 DEFAULT_THRESH = 15
 DEFAULT_NEG_SAMPLE = 5
 
-_row_data = namedtuple("row_data", "left_idx right_idx neg_space")
+_row_data = namedtuple("row_data", "left_idx right_idx neg_space_l neg_space_r")
+_subject_data = namedtuple("subject_data", "left right")
+_edge_data = namedtuple("row_data", "idx neg_space")
 
 
-def iter_subject_edges(
-        img, neg_sample=DEFAULT_NEG_SAMPLE, threshold=DEFAULT_THRESH):
+def config(*overrides, **kw_overrides):
+    return _config(*overrides, **kw_overrides)
+
+
+_config = namedtuple("config",
+                     "neg_sample_size threshold bg_change_tolerance")
+_defaults = DEFAULT_NEG_SAMPLE, DEFAULT_THRESHOLD, BG_CHANGE_TOLERANCE
+
+
+def iter_subject_edges(img, config=config()):
     """Finds the edges of the subject for each row of pixels. This assumes that
     the subject is on a background with significantly different RGB values.
     Yields `_row_data` instances."""
+    _get_corrected_neg_space(img, neg_sample)
+    edge_neg_space = _get_edge_neg_space(img, config.neg_sample_size)
+    prev_neg_space = edge_neg_space
     for row in img:
-        yield (_find_edge_indices(row, neg_sample, threshold),)
+        yield (_find_edge_indices(row, config.neg_sample, config.threshold),)
 
 
-def iter_all_subject_edges(
-        img, neg_sample=DEFAULT_NEG_SAMPLE, threshold=DEFAULT_THRESH):
-    """Like `iter_subject_edges`, but for any number of
-    subjects. Detects ALL edges based on initial (leftmost) whitespace."""
-    for row in img:
-        neg_space = np.mean(row[:neg_sample], axis=0)
-        pos_space = np.all(np.abs(row - neg_space) > threshold, axis=1)
-
-
-def _find_edge_indices(row, neg_sample_size, threshold):
+def _find_edge_indices(row, neg_sample_size, threshold, prev_edges=None):
     """Find edges of a single subject. Naively assume only a left
     and a right edge are present and that there's nothing in between."""
-    neg_space_l = np.mean(row[:neg_sample_size], axis=0)
-    neg_space_r = np.mean(row[-neg_sample_size:], axis=0)
+    neg_space_l = _gather_neg_sample(row[:neg_sample_size],
+                                     threshold, prev_edges)
+    neg_space_r = _gather_neg_sample(row[-neg_sample_size:],
+                                     threshold, prev_edges)
     pos_space = np.all(np.abs(row - neg_space_l) > threshold, axis=1)
     left_edge = np.argmax(pos_space)
     if np.any(np.abs(neg_space_r - neg_space_l) > max(threshold // 2, 1)):
@@ -48,7 +53,32 @@ def _find_edge_indices(row, neg_sample_size, threshold):
     if right_edge:
         width = row.shape[0]
         right_edge = width - right_edge
-    return _row_data(left_edge, right_edge, neg_space_l)
+    return _row_data(left_edge, right_edge, neg_space_l, neg_space_r)
+
+
+def _get_corrected_neg_space(img, sample_size):
+    edge_space = _get_edge_neg_space(img, sample_size)
+    left = np.median(img[::, :sample_size:], axis=1)
+    right = np.median(img[::, -sample_size::], axis=1)
+
+
+def _get_edge_neg_space(img, sample_size):
+    """Median value of negative space on the edge of the image"""
+    medians = [
+        np.median(img[:sample_size:], axis=0),
+        np.median(img[-sample_size::], axis=0),
+        np.median(img[::, :sample_size:], axis=1),
+        np.median(img[::, -sample_size::], axis=1)
+    ]
+    return np.median(medians[1:3], axis=0)
+
+
+def _gather_neg_sample(sample, threshold, prev_edges):
+    return np.mean(sample, axis=0)
+    if np.any(sample.max(axis=0) - sample.min(axis=0) > threshold):
+        return
+    else:
+        return np.mean(sample, axis=0)
 
 
 def _find_edge_indices_simple(row, neg_sample):
