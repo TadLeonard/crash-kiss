@@ -8,6 +8,57 @@ from itertools import tee
 import numpy as np
 
 
+class Edges(object):
+    """Arrays of indices that represent the edges of the foreground
+    of an image"""
+
+    def __init__(self, img=None, config=config()):
+        self._img = img
+        self._config = config()
+        self.find_background(img)
+        self.find_edges(img)
+        self.left = self.right = self.up = self.down = None
+        self._edges = self.left, self.right, self.up, self.down
+
+    def __iter__(self):
+        for edge in self._edges:
+            if edge:
+                yield edge
+        
+
+class Edge(object):
+    """A single edge of the foreground of an image"""
+
+    def __init__(self, img, config):
+        self._img = img
+        self._view = None
+        self._config = config
+        self.find_background(img)
+        self.find_edge(img) 
+
+    def find_background(self):
+        self.background = 
+
+    @property
+    def view(self):
+        if self._view is None:
+            self.orient()
+        return self.
+
+    def orient(self):
+        """Provides a consistent view of the image that allows `Edge` methods
+        to work as though they are all LEFT edges."""
+        raise NotImplementedError
+
+    @property
+    def background(self):
+        return 
+        
+    def __iter__(self): 
+        return iter(self.edge)
+        
+        
+
 def config(**kw_overrides):
     conf = dict(_config_defaults)
     conf.update(kw_overrides)
@@ -33,7 +84,7 @@ def _sliding_window(iterable, size):
 
 def get_edges(img, config=config()):
     overall, (left, right, up, down) = (
-        _get_edge_background(img, config["sample_size"]) 
+        _get_edge_background(img, config["neg_sample_size"]))
     left_edge = _get_edge_indices(img, left, config)
     right_edge = _get_edge_indices(img[::, ::-1], left, config)
     return left_edge, right_edge
@@ -65,8 +116,7 @@ def _get_edge_indices(img, background, config):
     represent the first non-background pixel moving from left to right in 
     the image. Since it finds edges from left to right, it's up to the
     caller to pass in an appropriately inverted or rotated view of the image
-    to account for this.
-    """
+    to account for this."""
     threshold = config["threshold"]
     bg_change_tolerance = config["bg_change_tolerance"]
 
@@ -74,7 +124,7 @@ def _get_edge_indices(img, background, config):
     # This way we can do a simple 
     # array - int operation instead of the more expensive array - [R, G, B]
     # or the even pricier array - <array of shape (NROWS, 1, 3)> operation
-    while isinstance(background, np.array):
+    while isinstance(background, type(np.array)):
         bmax, bmin = background.max(axis=0), background.min(axis=0)
         diff = (bmax - bmin) < bg_change_tolerance
         if len(background.shape) >= 2:
