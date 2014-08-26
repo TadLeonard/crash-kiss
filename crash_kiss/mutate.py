@@ -1,5 +1,6 @@
 """Functions for mutating a numpy ndarray of an image"""
 
+from six.moves import zip
 import numpy as np
 
 
@@ -15,29 +16,28 @@ def wall_smash_image(edges, img):
     """Mutates a numpy array of an image so that the subject
     is smashed to an edge of the image boarders."""
     for row_data_group, row in _iter_subject_rows(edges, img):
-        _shift_row_right(row_data_group, row)
+        _shift_row_left_to_right(row_data_group, row)
 
 
-def _shift_row_right(edges, row):
+def _shift_img_left_to_right(left_edge, right_edge, img):
     target_idx = row.shape[0]  # shift to end of img initially
-    for edge in edges:
-        rowlen = edge.right_idx - edge.left_idx
-        sub_data_l = target_idx - rowlen
-        sub_data_r = target_idx
-        row[sub_data_l: sub_data_r] = row[edge.left_idx: edge.right_idx]
-        target_idx = sub_data_l
+    rowlens = left 
+    rowlen = edge.right_idx - edge.left_idx
+    sub_data_l = target_idx - rowlen
+    sub_data_r = target_idx
+    row[sub_data_l: sub_data_r] = row[edge.left_idx: edge.right_idx]
+    target_idx = sub_data_l
 
     # We've shifted the subject(s) over, now we need to fill
     # the rest of the row with negative space
-    row[:sub_data_l] = edge.neg_space
+    row[:sub_data_l] = edge.neg_space_l
 
 
 def _iter_subject_rows(edges, img):
     """Iterate over edges, pixel rows that contain foreground info
     (i.e. not all whitespace)."""
-    #TODO: This doesn't make sense for the multiple subject case
     for row_data_group, row in zip(edges, img):
-        if any(r - l for l, r, _ in row_data_group):
+        if any(r - l for l, r, _, _ in row_data_group):
             yield row_data_group, row
 
 
@@ -50,7 +50,7 @@ def reveal_edges(edges, img, inplace=False):
     and red (right edge)"""
     new_img = img if inplace else img.copy()
     for row, edge_group in zip(new_img, edges):
-        for l, r, neg in edge_group:
+        for l, r, _, _ in edge_group:
             row[l-1: l+1] = _L_EDGE_REVEAL
             row[r-1: r+1] = _R_EDGE_REVEAL
     return new_img
