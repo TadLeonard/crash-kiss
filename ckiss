@@ -11,7 +11,7 @@ from crash_kiss import edge, mutate, util
 parser = argparse.ArgumentParser(description="Crash images into things")
 parser.add_argument("targets", nargs="+")
 parser.add_argument("--threshold",
-                    default=edge.DEFAULT_THRESH, type=int)
+                    default=edge.config()["threshold"], type=int)
 parser.add_argument("-s", "--smash", choices=("center", "wall"))
 parser.add_argument("-d", "--direction", default="lr",
                     help="'ud' up-to-down, 'rl' for right-to-left, etc",
@@ -31,7 +31,7 @@ def run():
     imgs = map(mahotas.imread, args.targets)
     if not imgs:
         parser.error("Must pass in one or more paths to images")
-    if len(imgs) == 1:
+    elif len(imgs) == 1:
         img = imgs[0]
     elif len(imgs) > 1:
         img = combine_images(imgs, axis=args.combine_axis)
@@ -46,9 +46,10 @@ def run():
     elif args.direction == "du":
         working_img = mutate.orient_down_to_up(img)
 
+	config = edge.config(threshold=args.threshold)
+
     # This is where we should process each image for edge detection...
-    edges = edge.iter_subject_edges(working_img, threshold=args.threshold)
-    edges = list(edges)  # we'll reuse our  dges if multiple mutations are used
+	edges = edge.get_edges(working_img, edge.config())
 
     # After this point we're always working with one big, combined image
     if args.smash:
