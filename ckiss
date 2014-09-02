@@ -38,13 +38,13 @@ def run():
 
     # change the orientation of the image if a non-left direction is specified
     if args.direction == "lr":
-        working_img = mutate.orient_left_to_right(img)
+        working_img = util.orient_left_to_right(img)
     elif args.direction == "rl":
-        working_img = mutate.orient_right_to_left(img)
+        working_img = util.orient_right_to_left(img)
     elif args.direction == "ud":
-        working_img = mutate.orient_up_to_down(img)
+        working_img = util.orient_up_to_down(img)
     elif args.direction == "du":
-        working_img = mutate.orient_down_to_up(img)
+        working_img = util.orient_down_to_up(img)
 
 	config = edge.config(threshold=args.threshold)
 
