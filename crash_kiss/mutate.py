@@ -14,7 +14,7 @@ def center_smash_image(edges, img):
 
 def wall_smash_image(edges, img):
     """Mutates a numpy array of an image so that the subject
-    is smashed to an edge of the image boarders."""
+    is smashed up against one of the image's borders."""
     for row_data_group, row in _iter_subject_rows(edges, img):
         _shift_row_left_to_right(row_data_group, row)
 
