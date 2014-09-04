@@ -15,6 +15,7 @@ def _get_test_img():
 
 
 def test_subject_default_sides():
+    """Make sure `Subject` defaults to having four `Side` instances"""
     img = _get_test_img()
     subj = edge.Subject(img=img)
     assert len(list(subj)) == 4
@@ -28,12 +29,15 @@ def test_test_image():
 
 
 def test_subject_config():
+    """Make sure config values are consumed by `Subject` correctly"""
     s = edge.Subject(config=edge.config(threshold=70, bg_change_tolerance=55))
     assert s._config["threshold"] == 70
     assert s._config["bg_change_tolerance"] == 55
 
 
 def test_side_config():
+    """Ensure that `Side` objs contained by `Subject` are given
+    their container's config"""
     s = edge.Subject(config=edge.config(threshold=70, bg_change_tolerance=55))
     assert s.left._config["threshold"] == 70
     assert s.left._config["bg_change_tolerance"] == 55
@@ -54,6 +58,8 @@ def test_edge_cleaning():
     
 
 def test_edge_below_threshold():
+    """Ensure that parts of the image that are similar to the background
+    are not detected as edges of the foreground"""
     img = _get_test_img()
     img[::, 4:6] = [230, 230, 230]
     config = edge.config(threshold=60)
@@ -63,10 +69,29 @@ def test_edge_below_threshold():
     
 
 def test_edge_above_threshold():
+    """Set a part of the image to be very unlike the background
+    so that it's detected as an edge of the foreground"""
     img = _get_test_img()
-    img[:8:, 4:6:] = [10, 10, 10]
-    config = edge.config(threshold=60)
+    img[:8:, 4:6:] = [10, 10, 10]  # a very dark vert. line on the left side
+    config = edge.config(threshold=60)  # large threshold
     subj = edge.Subject(img=img, config=config)
     l_edge = subj.left.edge
     assert np.all(l_edge >= 4)
+
+
+def test_edge_below_threshold_2():
+    img = _get_test_img()
+    img[:8:, 4:6:] = [30, 30, 30]  # a very dark vert. line on the left side
+    img[80, 80] = [0, 0, 0]  # black dot near the middle
+    silly_config = edge.config(threshold=227)
+    huge_threshold = edge.Subject(img=img, config=silly_config)
+    # the dark line should not be picked up as an edge due to the huge thresh
+    assert np.all(huge_threshold.left.edge[:5].mask == True)
+    # still, at least one part of the image is completely black...
+    assert not np.all(huge_threshold.left.edge.mask == True)
+    assert huge_threshold.left.edge[80] == 80  # we've located the black dot
+    img[:8:, 4:6:] = [0, 0, 0]  # black line!
+    huge_threshold = edge.Subject(img=img, config=silly_config)
+    # the black line is dark enough (difference is 255, which is > 247)
+    assert np.all(huge_threshold.left.edge[:5].mask == False)
 
