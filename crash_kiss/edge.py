@@ -39,12 +39,17 @@ class Subject(object):
 
     def __init__(self, img=None, config=config()):
         self._config = config
+        self._img = img
         used_sides = config["relative_sides"]
-        self._sides = tuple(Side(side) if side in used_sides else None
+        self._sides = tuple(self._make_side(side)
+                            if side in used_sides else None
                             for side in _side_names)
         self._active_sides = filter(None, self._sides)
         self.left, self.right, self.up, self.down = self._sides
         self.img = img
+
+    def _make_side(self, orientation):
+        return Side(orientation, img=self.img, config=self._config)
 
     @property
     def img(self):
@@ -92,7 +97,7 @@ class Side(object):
     @img.setter
     def img(self, new_img):
         if self._img is not None:
-            self.clear_view()
+            self._view = None
         self._img = new_img
 
     @property
@@ -107,7 +112,9 @@ class Side(object):
             bg = self.background
             thresh = self._config["threshold"]
             bg_delta = self._config["bg_change_tolerance"]
-            self._edge = get_edge(self.view, bg, thresh, bg_delta)
+            edge = get_edge(self.view, bg, thresh, bg_delta)
+            clean_up_edge(self.view, edge, bg, thresh)
+            self._edge = edge
         return self._edge
 
     @property
@@ -156,7 +163,14 @@ def get_edge(img, background, threshold, bg_change_tolerance):
             break  # we've simplified the background as much as we can
 
     foreground = np.all(np.abs(img - background) > threshold, axis=2)
-    return np.argmax(foreground, axis=1) 
+    edge = np.argmax(foreground, axis=1)
+    return edge.view(np.ma.MaskedArray)
+
+
+def clean_up_edge(img, edge, background, threshold):
+    left_edge = img[::, 0]
+    zeros = edge == 0
+    edge[zeros] = np.ma.masked
 
 
 def _sliding_window(iterable, size):
