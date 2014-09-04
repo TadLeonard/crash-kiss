@@ -41,19 +41,16 @@ def _iter_subject_rows(edges, img):
             yield row_data_group, row
 
 
-_L_EDGE_REVEAL = [0, 255, 0]
-_R_EDGE_REVEAL = [255, 0, 0]
+_EDGE_REVEAL = [0, 255, 0], [255, 0, 0], [255, 255, 0], [255, 255, 0]
 
 
-def reveal_edges(edges, img, inplace=False):
+def reveal_edges(subject):
     """Highlights the edges of an image with green (left edge)
     and red (right edge)"""
-    new_img = img if inplace else img.copy()
-    for row, edge_group in zip(new_img, edges):
-        for l, r, _, _ in edge_group:
-            row[l-1: l+1] = _L_EDGE_REVEAL
-            row[r-1: r+1] = _R_EDGE_REVEAL
-    return new_img
+    #TODO: This is gonna be slow. A `np.meshgrid` or something could help.
+    for side, color in zip(subject, _EDGE_REVEAL):
+        for row, col_idx in zip(side.view, side.edge):
+            row[col_idx - 1: col_idx + 1] = color
 
 
 def combine_images(imgs, horizontal=True):
