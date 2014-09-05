@@ -22,7 +22,7 @@ _config_defaults = dict(
     neg_sample_size=5,
     threshold=7,
     bg_change_tolerance=3,
-    relative_sides=_side_names,
+    relative_sides=("left", "right"),
 )
 
 _orientors = dict(
@@ -140,6 +140,7 @@ def get_background(img, sample_size):
     return bg
 
 
+@profile
 def get_edge(img, background, threshold, bg_change_tolerance):
     """Finds the 'edge' of the subject of an image based on a background
     value or an array of background values. Returns an array of indices that
@@ -147,11 +148,38 @@ def get_edge(img, background, threshold, bg_change_tolerance):
     the image. Since it finds edges from left to right, it's up to the
     caller to pass in an appropriately inverted or rotated view of the image
     to account for this."""
+    # The expensive things here are
+    # 1) calling doing a 3D array subtraction
+    # 2) calling np.abs across the whole ndarray
+    # 3) calling np.all across the whole ndarray
+    # argmax is relatively cheap
+    background = _reduce_background(background, bg_change_tolerance)
+    foreground = _find_foreground(img, background, threshold)
+    edge = np.argmax(foreground, axis=1)
+    return edge.view(np.ma.MaskedArray)
 
-    # Here, we see if the background's RGB elements are similar.
-    # This way we can do a simple 
-    # array - int operation instead of the more expensive array - [R, G, B]
-    # or the even pricier array - <array of shape (NROWS, 1, 3)> operation
+
+@profile
+def _find_foreground(img, background, threshold):
+    """Find the foreground of the image by subracting each RGB element
+    in the image by the background. If the background has been reduced
+    to a simple int or float, we'll try to avoid calling `np.abs`
+    by checking to see if the background value is near 0 or 255."""
+    is_num = isinstance(background, (float, int))
+    if is_num and background < 50:
+       diff = img - background > threshold
+    elif is_num and background > 200:
+       diff = background - img > threshold
+    else:
+       diff = np.abs(img - background) > threshold
+    return np.all(diff, axis=2)
+
+
+def _reduce_background(background, bg_change_tolerance):
+    """Here, we see if the background's RGB elements are similar.
+    This way we can do a simple 
+    array - int operation instead of the more expensive array - [R, G, B]
+    or the even pricier array - <array of shape (NROWS, 1, 3)> operation."""
     while isinstance(background, np.ndarray):
         bmax, bmin = background.max(axis=0), background.min(axis=0)
         diff = (bmax - bmin) < bg_change_tolerance
@@ -161,10 +189,7 @@ def get_edge(img, background, threshold, bg_change_tolerance):
             background = np.median(background, axis=0)
         else:
             break  # we've simplified the background as much as we can
-
-    foreground = np.all(np.abs(img - background) > threshold, axis=2)
-    edge = np.argmax(foreground, axis=1)
-    return edge.view(np.ma.MaskedArray)
+    return background
 
 
 def clean_up_edge(img, edge, background, threshold):
