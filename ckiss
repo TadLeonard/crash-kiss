@@ -23,6 +23,7 @@ debug = parser.add_argument_group("debugging")
 debug.add_argument("-c", "--charout", action="store_true")
 debug.add_argument("--char-scale", type=float, default=1.0)
 debug.add_argument("-e", "--reveal-edges", action="store_true")
+debug.add_argument("--reveal-width", type=int, default=1)
 
 
 def run():
@@ -34,7 +35,7 @@ def run():
     elif len(imgs) == 1:
         img = imgs[0]
     elif len(imgs) > 1:
-        img = combine_images(imgs, axis=args.combine_axis)
+        img = mutate.combine_images(imgs, axis=args.combine_axis)
 
     # change the orientation of the image if a non-left direction is specified
     if args.direction == "lr":
@@ -46,26 +47,27 @@ def run():
     elif args.direction == "du":
         working_img = util.orient_down_to_up(img)
 
-	config = edge.config(threshold=args.threshold)
 
     # This is where we should process each image for edge detection...
-	edges = edge.get_edges(working_img, edge.config())
+    config = edge.config(threshold=args.threshold)
+    subject = edge.Subject(img=working_img, config=config)
 
     # After this point we're always working with one big, combined image
     if args.smash:
         if args.smash == "center":
             raise NotImplementedError("Can't center smash yet")
         elif args.smash == "wall":
-            mutate.wall_smash_image(edges, working_img)
+            mutate.wall_smash_image(subject, working_img)
 
     # Various things to do with the result of our image mutations
     if args.charout:
-        char_img = util.textify_edges(edges, char=u"@", scale=args.char_scale)
+        char_img = util.textify_edges(
+            subject, char=u"@", scale=args.char_scale)
         print("".join(char_img))
     if args.reveal_edges:
-        mutate.reveal_edges(edges, working_img, inplace=True)
+        mutate.reveal_edges(subject, args.reveal_width)
     if args.outfile:
-        mahotas.imsave(args.outfile, img)
+        mahotas.imsave(args.outfile, working_img)
 
 
 if __name__ == "__main__":
