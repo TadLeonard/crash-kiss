@@ -8,17 +8,26 @@ import mahotas
 from crash_kiss import edge, mutate, util
 
 
-parser = argparse.ArgumentParser(description="Crash images into things")
+parser = argparse.ArgumentParser(
+    description="Crash images into things",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("targets", nargs="+")
-parser.add_argument("--threshold",
-                    default=edge.config()["threshold"], type=int)
 parser.add_argument("-s", "--smash", choices=("center", "wall"))
 parser.add_argument("-d", "--direction", default="lr",
-                    help="'ud' up-to-down, 'rl' for right-to-left, etc",
+                    help="'ud' up-to-down and so on",
                     choices=("lr", "rl", "ud", "du"))
 parser.add_argument("-a", "--combine-axis",
                     choices=("vertical", "horizontal"), default="horizontal")
 parser.add_argument("-o", "--outfile", default=None)
+procargs = parser.add_argument_group("processing")
+procargs.add_argument("--bg-change-tolerance", type=int,
+                      help="used to reduce the foreground vs. background"
+                           "comparison in edge detection",
+                      default=edge.config()["bg_change_tolerance"])
+procargs.add_argument("--threshold",
+                      help="min difference between background and foreground"
+                           "to determine an edge",
+                      default=edge.config()["threshold"], type=int)
 debug = parser.add_argument_group("debugging")
 debug.add_argument("-c", "--charout", action="store_true")
 debug.add_argument("--char-scale", type=float, default=1.0)
@@ -49,7 +58,8 @@ def run():
 
 
     # This is where we should process each image for edge detection...
-    config = edge.config(threshold=args.threshold)
+    config = edge.config(threshold=args.threshold,
+                         bg_change_tolerance=args.bg_change_tolerance)
     subject = edge.Subject(img=working_img, config=config)
 
     # After this point we're always working with one big, combined image
@@ -57,7 +67,7 @@ def run():
         if args.smash == "center":
             raise NotImplementedError("Can't center smash yet")
         elif args.smash == "wall":
-            mutate.wall_smash_image(subject, working_img)
+            mutate.wall_smash_image(subject)
 
     # Various things to do with the result of our image mutations
     if args.charout:
@@ -67,7 +77,7 @@ def run():
     if args.reveal_edges:
         mutate.reveal_edges(subject, args.reveal_width)
     if args.outfile:
-        mahotas.imsave(args.outfile, working_img)
+        mahotas.imsave(args.outfile, img)
 
 
 if __name__ == "__main__":
