@@ -28,6 +28,10 @@ procargs.add_argument("--threshold",
                       help="min difference between background and foreground"
                            "to determine an edge",
                       default=edge.config()["threshold"], type=int)
+procargs.add_argument("--neg-sample-size", type=int,
+                      help="num pixels of edges space to use in the "
+                           "sampling of the background color",
+                      default=edge.config()["neg_sample_size"])
 debug = parser.add_argument_group("debugging")
 debug.add_argument("-c", "--charout", action="store_true")
 debug.add_argument("--char-scale", type=float, default=1.0)
@@ -59,7 +63,8 @@ def run():
 
     # This is where we should process each image for edge detection...
     config = edge.config(threshold=args.threshold,
-                         bg_change_tolerance=args.bg_change_tolerance)
+                         bg_change_tolerance=args.bg_change_tolerance,
+                         neg_sample_size=args.neg_sample_size)
     subject = edge.Subject(img=working_img, config=config)
 
     # After this point we're always working with one big, combined image
