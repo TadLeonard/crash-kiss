@@ -12,12 +12,16 @@ def center_smash_image(edges, img):
     is (probably white or transparent pixels)."""
 
 
-def wall_smash_image(edges, img):
+def wall_smash_image(subject):
     """Mutates a numpy array of an image so that the subject
     is smashed up against one of the image's borders."""
-    for row_data_group, row in _iter_subject_rows(edges, img):
-        _shift_row_left_to_right(row_data_group, row)
-
+    im = subject.img
+    target = im.shape[1]
+    rowlens = subject.right.edge - subject.left.edge
+    
+    for row, l, r in zip(im, subject.left, subject.right):
+        pass
+        
 
 def _shift_img_left_to_right(left_edge, right_edge, img):
     target_idx = row.shape[0]  # shift to end of img initially

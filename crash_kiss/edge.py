@@ -113,7 +113,6 @@ class Side(object):
             thresh = self._config["threshold"]
             bg_delta = self._config["bg_change_tolerance"]
             edge = get_edge(self.view, bg, thresh, bg_delta)
-            clean_up_edge(self.view, edge, bg, thresh)
             self._edge = edge
         return self._edge
 
@@ -154,8 +153,23 @@ def get_edge(img, background, threshold, bg_change_tolerance):
     # 3) calling np.all across the whole ndarray
     # argmax is relatively cheap
     background = _reduce_background(background, bg_change_tolerance)
-    foreground = _find_foreground(img, background, threshold)
-    edge = np.argmax(foreground, axis=1)
+    n_rows, n_cols = img.shape[:2]
+    chunksize = n_cols // 10
+    chunks = [chunksize * n for n in range(1, 7)]
+    chunks.append(n_cols - 1)  # look in small chunks until after halfway
+    prev_idx = 0
+    # non-edge indices will be masked
+    edge = np.ma.array(np.zeros(n_rows), mask=np.ones(n_rows))
+    img_view = img.view(np.ma.MaskedArray)
+    for idx in chunks:
+        img_slice = img_view[::, prev_idx: idx + 1]
+        foreground = _find_foreground(img_slice, background, threshold)
+        sub_edge = np.ma.argmax(foreground, axis=1).view(np.ma.MaskedArray)
+        sub_edge[sub_edge == 0] = np.ma.masked
+        sub_edge += prev_idx
+        edge[~sub_edge.mask] = sub_edge[~sub_edge.mask]
+        img_slice.mask &= sub_edge.mask
+        prev_idx = idx
     return edge.view(np.ma.MaskedArray)
 
 
@@ -171,8 +185,8 @@ def _find_foreground(img, background, threshold):
     elif is_num and background > 200:
        diff = background - img > threshold
     else:
-       diff = np.abs(img - background) > threshold
-    return np.all(diff, axis=2)
+       diff = np.ma.abs(img - background) > threshold
+    return np.ma.all(diff, axis=2)
 
 
 def _reduce_background(background, bg_change_tolerance):
@@ -190,12 +204,6 @@ def _reduce_background(background, bg_change_tolerance):
         else:
             break  # we've simplified the background as much as we can
     return background
-
-
-def clean_up_edge(img, edge, background, threshold):
-    left_edge = img[::, 0]
-    zeros = edge == 0
-    edge[zeros] = np.ma.masked
 
 
 def _sliding_window(iterable, size):
