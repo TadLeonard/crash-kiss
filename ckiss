@@ -20,18 +20,23 @@ parser.add_argument("-a", "--combine-axis",
                     choices=("vertical", "horizontal"), default="horizontal")
 parser.add_argument("-o", "--outfile", default=None)
 procargs = parser.add_argument_group("processing")
+_conf = edge.config()  # defaults
 procargs.add_argument("--bg-change-tolerance", type=int,
                       help="used to reduce the foreground vs. background"
                            "comparison in edge detection",
-                      default=edge.config()["bg_change_tolerance"])
+                      default=_conf["bg_change_tolerance"])
 procargs.add_argument("--threshold",
                       help="min difference between background and foreground"
                            "to determine an edge",
-                      default=edge.config()["threshold"], type=int)
+                      default=_conf["threshold"], type=int)
 procargs.add_argument("--neg-sample-size", type=int,
                       help="num pixels of edges space to use in the "
                            "sampling of the background color",
-                      default=edge.config()["neg_sample_size"])
+                      default=_conf["neg_sample_size"])
+procargs.add_argument("--relative-sides",
+                      type=lambda x: x.split(","),
+                      help="side of the subject (after rotation) to act on",
+                      default=_conf["relative_sides"])
 debug = parser.add_argument_group("debugging")
 debug.add_argument("-c", "--charout", action="store_true")
 debug.add_argument("--char-scale", type=float, default=1.0)
@@ -64,7 +69,8 @@ def run():
     # This is where we should process each image for edge detection...
     config = edge.config(threshold=args.threshold,
                          bg_change_tolerance=args.bg_change_tolerance,
-                         neg_sample_size=args.neg_sample_size)
+                         neg_sample_size=args.neg_sample_size,
+                         relative_sides=args.relative_sides)
     subject = edge.Subject(img=working_img, config=config)
 
     # After this point we're always working with one big, combined image
