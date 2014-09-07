@@ -41,16 +41,19 @@ def _shift_img_left_to_right(left_edge, right_edge, img):
 _EDGE_REVEAL = [0, 255, 0], [255, 0, 0], [255, 255, 0], [0, 255, 255]
 
 
+@profile
 def reveal_edges(subject, reveal_width):
-    """Highlights the edges of an image with green (left edge)
-    and red (right edge)"""
-    #TODO: This is gonna be slow. A `np.meshgrid` or something could help.
-    L = reveal_width
+    """Highlights the left, right, upper, and lower edges of an image
+    with green, red, yellow, and cyan."""
     for side, color in zip(subject, _EDGE_REVEAL):
-        for row, col_idx in zip(side.view, side.edge):
-            if not col_idx:
-                continue
-            row[col_idx - L: col_idx] = color
+        view = side.view
+        rows = np.arange(view.shape[0])
+        edge = side.edge
+        view[rows, edge] = color
+        # slow, but negligible in comparison to edge finding
+        for _ in range(reveal_width):
+            edge[edge != 0] -= 1
+            view[rows, edge] = color
 
 
 def combine_images(imgs, horizontal=True):
