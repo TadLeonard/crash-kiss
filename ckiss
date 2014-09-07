@@ -37,11 +37,19 @@ procargs.add_argument("--relative-sides",
                       type=lambda x: x.split(","),
                       help="side of the subject (after rotation) to act on",
                       default=_conf["relative_sides"])
+procargs.add_argument("--chunksize", type=int, default=_conf["chunksize"],
+                      help="Num columns of image to process at once")
 debug = parser.add_argument_group("debugging")
 debug.add_argument("-c", "--charout", action="store_true")
 debug.add_argument("--char-scale", type=float, default=1.0)
 debug.add_argument("-e", "--reveal-edges", action="store_true")
 debug.add_argument("--reveal-width", type=int, default=1)
+
+
+_orientors = dict(
+    lr=util.orient_left_to_right, rl=util.orient_right_to_left,
+    ud=util.orient_up_to_down, du=util.orient_down_to_up
+)
 
 
 def run():
@@ -56,21 +64,14 @@ def run():
         img = mutate.combine_images(imgs, axis=args.combine_axis)
 
     # change the orientation of the image if a non-left direction is specified
-    if args.direction == "lr":
-        working_img = util.orient_left_to_right(img)
-    elif args.direction == "rl":
-        working_img = util.orient_right_to_left(img)
-    elif args.direction == "ud":
-        working_img = util.orient_up_to_down(img)
-    elif args.direction == "du":
-        working_img = util.orient_down_to_up(img)
-
+    working_img = _orientors[args.direction](img)
 
     # This is where we should process each image for edge detection...
     config = edge.config(threshold=args.threshold,
                          bg_change_tolerance=args.bg_change_tolerance,
                          neg_sample_size=args.neg_sample_size,
-                         relative_sides=args.relative_sides)
+                         relative_sides=args.relative_sides,
+                         chunksize=args.chunksize)
     subject = edge.Subject(img=working_img, config=config)
 
     # After this point we're always working with one big, combined image
