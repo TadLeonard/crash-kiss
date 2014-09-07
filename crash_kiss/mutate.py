@@ -37,14 +37,7 @@ def _shift_img_left_to_right(left_edge, right_edge, img):
     row[:sub_data_l] = edge.neg_space_l
 
 
-def _iter_subject_rows(edges, img):
-    """Iterate over edges, pixel rows that contain foreground info
-    (i.e. not all whitespace)."""
-    for row_data_group, row in zip(edges, img):
-        if any(r - l for l, r, _, _ in row_data_group):
-            yield row_data_group, row
-
-
+# green, red, yellow, cyan
 _EDGE_REVEAL = [0, 255, 0], [255, 0, 0], [255, 255, 0], [0, 255, 255]
 
 
