@@ -57,7 +57,7 @@ def reveal_edges(subject, reveal_width):
         for row, col_idx in zip(side.view, side.edge):
             if not col_idx:
                 continue
-            row[col_idx - L: col_idx + L] = color
+            row[col_idx - L: col_idx] = color
 
 
 def combine_images(imgs, horizontal=True):
