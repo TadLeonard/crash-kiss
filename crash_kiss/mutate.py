@@ -41,7 +41,6 @@ def _shift_img_left_to_right(left_edge, right_edge, img):
 _EDGE_REVEAL = [0, 255, 0], [255, 0, 0], [255, 255, 0], [0, 255, 255]
 
 
-@profile
 def reveal_edges(subject, reveal_width):
     """Highlights the left, right, upper, and lower edges of an image
     with green, red, yellow, and cyan."""
@@ -51,7 +50,7 @@ def reveal_edges(subject, reveal_width):
         edge = side.edge
         view[rows, edge] = color
         # slow, but negligible in comparison to edge finding
-        for _ in range(reveal_width):
+        for _ in range(reveal_width - 1):
             edge[edge != 0] -= 1
             view[rows, edge] = color
 
