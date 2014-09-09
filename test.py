@@ -18,7 +18,7 @@ def test_subject_default_sides():
     """Make sure `Subject` defaults to having four `Side` instances"""
     img = _get_test_img()
     subj = edge.Subject(img=img)
-    assert len(list(subj)) == 4
+    assert len(list(subj)) == 2
 
 
 def test_test_image():
@@ -45,16 +45,15 @@ def test_side_config():
     assert all(side._config == c for side in s)
     
 
-def test_edge_cleaning():
-    """Make sure that rows that are all background (i.e. all white) do not
-    get an edge index of zero but are instead masked."""
+def test_no_edge():
+    """Make sure parts of the image with no edge get an edge index of 0"""
     img = _get_test_img()
     assert np.all(img[:5] == [255, 255, 255])  # top rows aughtta be white
     sub = edge.Subject(img=img)
     # Edges are masked arrays. A True value in a masked array indicates that
     # the value is masked, so we want white rows's edges to be masked
     # or == True
-    assert np.all(sub.left.edge[:5].mask == True)
+    assert np.all(sub.left.edge[:5] == 0)
     
 
 def test_edge_below_threshold():
@@ -62,38 +61,43 @@ def test_edge_below_threshold():
     are not detected as edges of the foreground"""
     img = _get_test_img()
     img[::, 4:6] = [230, 230, 230]
-    config = edge.config(threshold=60)
+    config = edge.config(threshold=60, neg_sample_size=1)
     sub = edge.Subject(img=img, config=config)
-    print sub.left.edge[:-10]
-    assert np.all(sub.left.edge >= 5)
+    nz_edge = sub.left.edge != 0
+    nz_edge = sub.left.edge[nz_edge]
+    assert np.all(nz_edge >= 5)
     
 
 def test_edge_above_threshold():
     """Set a part of the image to be very unlike the background
     so that it's detected as an edge of the foreground"""
     img = _get_test_img()
-    img[:8:, 4:6:] = [10, 10, 10]  # a very dark vert. line on the left side
-    config = edge.config(threshold=60)  # large threshold
+    img[::, 4:6:] = [10, 10, 10]  # a very dark vert. line on the left side
+    config = edge.config(threshold=60, neg_sample_size=1)  # large threshold
     subj = edge.Subject(img=img, config=config)
     l_edge = subj.left.edge
+    print np.argmax(l_edge < 4)
+    print l_edge[l_edge < 4]
+    import mahotas
+    mahotas.imsave("w.jpg", img)
     assert np.all(l_edge >= 4)
 
 
 def test_edge_below_threshold_2():
     img = _get_test_img()
-    img[:8:, 4:6:] = [30, 30, 30]  # a very dark vert. line on the left side
+    img[::, 4:6:] = [30, 30, 30]  # a very dark vert. line on the left side
     img[80, 80] = [0, 0, 0]  # black dot near the middle
-    silly_config = edge.config(threshold=227)
+    silly_config = edge.config(threshold=227, neg_sample_size=1)
     huge_threshold = edge.Subject(img=img, config=silly_config)
     # the dark line should not be picked up as an edge due to the huge thresh
-    assert np.all(huge_threshold.left.edge[:5].mask == True)
+    assert np.all(huge_threshold.left.edge[:5] == 0)
     # still, at least one part of the image is completely black...
-    assert not np.all(huge_threshold.left.edge.mask == True)
+    assert not np.all(huge_threshold.left.edge == 0)
     assert huge_threshold.left.edge[80] == 80  # we've located the black dot
     img[:8:, 4:6:] = [0, 0, 0]  # black line!
     huge_threshold = edge.Subject(img=img, config=silly_config)
     # the black line is dark enough (difference is 255, which is > 247)
-    assert np.all(huge_threshold.left.edge[:5].mask == False)
+    assert np.all(huge_threshold.left.edge[:5] != 0)
 
 
 def test_column_blocks():
