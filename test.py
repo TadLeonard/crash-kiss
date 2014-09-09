@@ -95,3 +95,19 @@ def test_edge_below_threshold_2():
     # the black line is dark enough (difference is 255, which is > 247)
     assert np.all(huge_threshold.left.edge[:5].mask == False)
 
+
+def test_column_blocks():
+    img = _get_test_img()
+    chunksize = 10
+    chunks = list(edge._column_blocks(img, chunksize))
+    for n, (chunk, _) in enumerate(chunks):
+        color = n * 10
+        chunk[::] = n
+    for n, (chunk, _) in enumerate(chunks):
+        color = n * 10
+        print chunk
+        print chunk == color
+        assert np.all(chunk == color)
+        break
+    
+
