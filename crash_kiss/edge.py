@@ -137,7 +137,6 @@ def get_background(img, sample_size):
     return bg
 
 
-@profile
 def get_edge(img, background, config):
     """Finds the 'edge' of the subject of an image based on a background
     value or an array of background values. Returns an array of indices that
@@ -206,7 +205,6 @@ def _get_contiguous_slice(img, z_edge, offset):
     return img[start: stop], start, stop 
 
 
-@profile
 def _find_foreground(img, background, config):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
