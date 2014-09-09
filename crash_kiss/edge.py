@@ -20,10 +20,10 @@ _side_names = "left", "right", "up", "down"
 
 _config_defaults = dict(
     neg_sample_size=5,
-    threshold=7,
-    bg_change_tolerance=3,
+    threshold=10,
+    bg_change_tolerance=7,
     relative_sides=("left", "right"),
-    chunksize=100,
+    chunksize=300,
 )
 
 _orientors = dict(
