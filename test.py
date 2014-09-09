@@ -76,10 +76,6 @@ def test_edge_above_threshold():
     config = edge.config(threshold=60, neg_sample_size=1)  # large threshold
     subj = edge.Subject(img=img, config=config)
     l_edge = subj.left.edge
-    print np.argmax(l_edge < 4)
-    print l_edge[l_edge < 4]
-    import mahotas
-    mahotas.imsave("w.jpg", img)
     assert np.all(l_edge >= 4)
 
 
