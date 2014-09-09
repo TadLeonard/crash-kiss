@@ -73,6 +73,7 @@ def run():
                          relative_sides=args.relative_sides,
                          chunksize=args.chunksize)
     subject = edge.Subject(img=working_img, config=config)
+    edges = subject.edges
 
     # After this point we're always working with one big, combined image
     if args.smash:
