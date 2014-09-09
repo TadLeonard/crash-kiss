@@ -102,12 +102,10 @@ def test_column_blocks():
     chunks = list(edge._column_blocks(img, chunksize))
     for n, (chunk, _) in enumerate(chunks):
         color = n * 10
-        chunk[::] = n
+        chunk[::] = color
     for n, (chunk, _) in enumerate(chunks):
         color = n * 10
-        print chunk
-        print chunk == color
-        assert np.all(chunk == color)
-        break
+        rows = np.arange(chunk.shape[0])
+        assert np.all(chunk[rows, :-1] == color)
     
 
