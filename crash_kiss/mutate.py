@@ -46,6 +46,7 @@ def reveal_edges(subject, reveal_width):
     with green, red, yellow, and cyan."""
     for side, color in zip(subject, _EDGE_REVEAL):
         view = side.view
+        left_col = view[::, 0].copy()
         cols = side.edge.copy()
         rows = np.arange(view.shape[0])
         subtracts = [0] + ([1] * (reveal_width - 1))
@@ -53,9 +54,7 @@ def reveal_edges(subject, reveal_width):
             nz_cols = cols != 0
             cols[nz_cols] -= n
             view[rows, cols] = color
-        bg = side.background
-        bg = bg.reshape(bg.shape[0], bg.shape[2])
-        view[::, 0] = bg
+        view[::, 0] = left_col  # restore edge of image
 
 
 def combine_images(imgs, horizontal=True):
