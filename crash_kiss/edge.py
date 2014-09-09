@@ -23,6 +23,7 @@ _config_defaults = dict(
     threshold=7,
     bg_change_tolerance=3,
     relative_sides=("left", "right"),
+    chunksize=100,
 )
 
 _orientors = dict(
@@ -110,10 +111,7 @@ class Side(object):
     def edge(self):
         if self._edge is None:
             bg = self.background
-            thresh = self._config["threshold"]
-            bg_delta = self._config["bg_change_tolerance"]
-            edge = get_edge(self.view, bg, thresh, bg_delta)
-            self._edge = edge
+            self._edge = get_edge(self.view, bg, self._config)
         return self._edge
 
     @property
@@ -140,7 +138,7 @@ def get_background(img, sample_size):
 
 
 @profile
-def get_edge(img, background, threshold, bg_change_tolerance):
+def get_edge(img, background, config):
     """Finds the 'edge' of the subject of an image based on a background
     value or an array of background values. Returns an array of indices that
     represent the first non-background pixel moving from left to right in 
@@ -148,53 +146,90 @@ def get_edge(img, background, threshold, bg_change_tolerance):
     caller to pass in an appropriately inverted or rotated view of the image
     to account for this."""
     # The expensive things here are
-    # 1) calling doing a 3D array subtraction
+    # 1) subtraction / comparison of the whole ndarray
     # 2) calling np.abs across the whole ndarray
     # 3) calling np.all across the whole ndarray
+    # 4) repeatedly creating slice views of the whole ndarray
     # argmax is relatively cheap
-    background = _reduce_background(background, bg_change_tolerance)
-    n_rows, n_cols = img.shape[:2]
-    chunksize = n_cols // 10
-    chunks = [chunksize * n for n in range(1, 7)]
-    chunks.append(n_cols - 1)  # look in small chunks until after halfway
+    bg = _simplify_background(background, config)
+    bg_is_array = isinstance(bg, np.ndarray)
+    edge = np.zeros(img.shape[0], dtype=np.uint16)
+    chunks = _column_blocks(img, config["chunksize"])
+    for img_chunk, prev_idx in chunks:
+        for img_slice, start, stop in _row_slices(img_chunk, edge):
+            if bg_is_array:
+                bg = background[start: stop]
+            fg = _find_foreground(img_slice, bg, config)
+            sub_edge = np.argmax(fg, axis=1)
+            nz_sub_edge = sub_edge != 0
+            sub_edge[nz_sub_edge] += prev_idx
+            edge[start: stop] = sub_edge
+    return edge
+
+
+def _column_blocks(img, chunksize):
+    n_cols = img.shape[1]
+    chunksize = min(chunksize, n_cols)
+    n_chunks = ((n_cols // chunksize) // 2) + 1 
+    chunks = [chunksize * n for n in range(1, n_chunks)]
+    if not chunks or chunks[-1] < n_cols:
+        chunks.append(n_cols - 1)  # n_cols - 1 + 1 == n_cols
     prev_idx = 0
-    # non-edge indices will be masked
-    edge = np.ma.array(np.zeros(n_rows), mask=np.ones(n_rows))
-    img_view = img.view(np.ma.MaskedArray)
     for idx in chunks:
-        img_slice = img_view[::, prev_idx: idx + 1]
-        foreground = _find_foreground(img_slice, background, threshold)
-        sub_edge = np.ma.argmax(foreground, axis=1).view(np.ma.MaskedArray)
-        sub_edge[sub_edge == 0] = np.ma.masked
-        sub_edge += prev_idx
-        edge[~sub_edge.mask] = sub_edge[~sub_edge.mask]
-        img_slice.mask &= sub_edge.mask
+        yield img[::, prev_idx: idx + 1], prev_idx
         prev_idx = idx
-    return edge.view(np.ma.MaskedArray)
+
+
+def _row_slices(img, edge):
+    z_edge = edge == 0
+    stop = 0
+    n_rows = img.shape[0]
+    while stop != n_rows:
+        img_slice, start, stop = _get_contiguous_slice(img, z_edge, stop)
+        yield img_slice, start, stop
+
+
+def _get_contiguous_slice(img, z_edge, offset):
+    z_edge = z_edge[offset:]
+    start = np.argmax(z_edge)
+    if not start and not z_edge[start]:
+        raise StopIteration
+    stop = np.argmin(z_edge[start:])
+    start += offset
+    if not stop:
+        if z_edge[-1]:
+            stop = img.shape[0]
+        else:
+            stop = start + 1 
+    else:
+        stop += offset
+    return img[start: stop], start, stop 
 
 
 @profile
-def _find_foreground(img, background, threshold):
+def _find_foreground(img, background, config):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
     to a simple int or float, we'll try to avoid calling `np.abs`
     by checking to see if the background value is near 0 or 255."""
+    threshold = config["threshold"]
     is_num = isinstance(background, (float, int))
     if is_num and background < 50:
-       diff = img - background > threshold
+        diff = img - background > threshold
     elif is_num and background > 200:
-       diff = background - img > threshold
+        diff = background - img > threshold
     else:
-       diff = np.ma.abs(img - background) > threshold
-    return np.ma.all(diff, axis=2)
+        diff = np.abs((img - background) > threshold)
+    return np.all(diff, axis=2)
 
 
-def _reduce_background(background, bg_change_tolerance):
+def _simplify_background(background, config):
     """Here, we see if the background's RGB elements are similar.
     This way we can do a simple 
     array - int operation instead of the more expensive array - [R, G, B]
     or the even pricier array - <array of shape (NROWS, 1, 3)> operation."""
     while isinstance(background, np.ndarray):
+        bg_change_tolerance = config["bg_change_tolerance"]
         bmax, bmin = background.max(axis=0), background.min(axis=0)
         diff = (bmax - bmin) < bg_change_tolerance
         if len(background.shape) >= 2:
