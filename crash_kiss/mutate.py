@@ -46,13 +46,16 @@ def reveal_edges(subject, reveal_width):
     with green, red, yellow, and cyan."""
     for side, color in zip(subject, _EDGE_REVEAL):
         view = side.view
+        cols = side.edge.copy()
         rows = np.arange(view.shape[0])
-        edge = side.edge
-        view[rows, edge] = color
-        # slow, but negligible in comparison to edge finding
-        for _ in range(reveal_width - 1):
-            edge[edge != 0] -= 1
-            view[rows, edge] = color
+        subtracts = [0] + ([1] * (reveal_width - 1))
+        for n in subtracts:
+            nz_cols = cols != 0
+            cols[nz_cols] -= n
+            view[rows, cols] = color
+        bg = side.background
+        bg = bg.reshape(bg.shape[0], bg.shape[2])
+        view[::, 0] = bg
 
 
 def combine_images(imgs, horizontal=True):
@@ -61,5 +64,4 @@ def combine_images(imgs, horizontal=True):
     for img in imgs[1:]:
         combined = np.append(combined, img, axis=axis)
     return combined
-
 
