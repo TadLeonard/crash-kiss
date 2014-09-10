@@ -4,6 +4,8 @@ Command line entry point to `crash kiss` face smashing functions.
 """
 from __future__ import print_function
 import argparse
+import os
+import tempfile
 import mahotas
 from crash_kiss import edge, mutate, util
 
@@ -19,6 +21,8 @@ parser.add_argument("-d", "--direction", default="lr",
 parser.add_argument("-a", "--combine-axis",
                     choices=("vertical", "horizontal"), default="horizontal")
 parser.add_argument("-o", "--outfile", default=None)
+parser.add_argument("-O", "--show-with", help="view result with this command",
+                    default="gpicview {0} > /dev/null 2>&1")
 procargs = parser.add_argument_group("processing")
 _conf = edge.config()  # defaults
 procargs.add_argument("--bg-change-tolerance", type=int,
@@ -86,6 +90,10 @@ def run():
         mutate.reveal_edges(subject, args.reveal_width)
     if args.outfile:
         mahotas.imsave(args.outfile, img)
+    else:
+        temp = tempfile.mktemp(prefix="ckiss-", suffix=".jpg")
+        mahotas.imsave(temp, img)
+        os.system(args.show_with.format(temp))
 
 
 if __name__ == "__main__":
