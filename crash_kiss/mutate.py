@@ -5,20 +5,29 @@ import numpy as np
 
 
 def center_smash_image(edges, img):
-    """The original "crash kiss" method used to smash two people's
-    profiles together in a grotesque "kiss". The rule is: move the
-    subjects of each row towards each other until they touch.
+    """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
 
 
-def wall_smash_image(subject):
+def wall_smash_many(combined_img, subjects):
+    """Smash many subjects against a wall. The first (leftmost)
+    subject is smashed flat against the left border. Each subject after
+    that is smashed against the right edge of the previous subject."""
+     
+
+
+def wall_smash(subject, out=None, target_edge=None):
     """Mutates a numpy array of an image so that the subject is smashed up
     against one of the image's borders. The left (relative to the subject)
     border is used, so the caller must provide a properly flipped or rotated
     view of the image array to smash the subject against the desired
     border."""
     view = subject.left.view
+    if out is None:
+        out = view
+    if target_edge is None:
+        target_edge = np.zeros(out.shape[0])
     l_edge = subject.left.edge
     bg = subject.right.background
     n_cols = view.shape[1]

@@ -80,7 +80,7 @@ def run():
         if args.smash == "center":
             raise NotImplementedError("Can't center smash yet")
         elif args.smash == "wall":
-            mutate.wall_smash_image(subject)
+            mutate.wall_smash(subject)
 
     # Various things to do with the result of our image mutations
     if args.charout:
