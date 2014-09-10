@@ -3,18 +3,6 @@
 from six.moves import zip
 
 
-def textify_edges(subject, char=u"@", scale=1.0):
-    """Generates a text representation of an image subject's edges"""
-    prev_right = 0
-    for left, right in zip(subject.left.edge, subject.right.edge):
-        if not right:
-            continue
-        yield u" " * int((left - prev_right) * scale)
-        yield char * int((right - left) * scale)
-        prev_right = right
-    yield u"\n"
-
-
 def orient_right_to_left(img):
     return invert_horizontal(img)
 

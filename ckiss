@@ -40,7 +40,6 @@ procargs.add_argument("--relative-sides",
 procargs.add_argument("--chunksize", type=int, default=_conf["chunksize"],
                       help="Num columns of image to process at once")
 debug = parser.add_argument_group("debugging")
-debug.add_argument("-c", "--charout", action="store_true")
 debug.add_argument("--char-scale", type=float, default=1.0)
 debug.add_argument("-e", "--reveal-edges", action="store_true")
 debug.add_argument("--reveal-width", type=int, default=1)
@@ -83,10 +82,6 @@ def run():
             mutate.wall_smash_image(subject)
 
     # Various things to do with the result of our image mutations
-    if args.charout:
-        char_img = util.textify_edges(
-            subject, char=u"@", scale=args.char_scale)
-        print("".join(char_img))
     if args.reveal_edges:
         mutate.reveal_edges(subject, args.reveal_width)
     if args.outfile:
