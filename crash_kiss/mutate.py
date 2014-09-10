@@ -28,15 +28,18 @@ def wall_smash(subject, out=None, target_edge=None):
         out = view
     if target_edge is None:
         target_edge = np.zeros(out.shape[0])
+    subject_width = view.shape[1]
     l_edge = subject.left.edge
-    bg = subject.right.background
+    bg_side = subject.right or subject.left
+    bg = bg_side.background
     n_cols = view.shape[1]
-    bg_idx = n_cols - l_edge
-    for row, l_idx, bg_idx, bg in zip(view, l_edge, bg_idx, bg):
+    bg_edge = (n_cols - l_edge) + target_edge
+    zipped = zip(out, l_edge, bg_edge, bg, target_edge)
+    for row, l_idx, bg_idx, bg, target_idx in zipped:
         if not l_idx:
             continue
-        row[0: bg_idx] = row[l_idx:]
-        row[bg_idx:] = bg
+        row[target_idx: bg_idx] = row[l_idx: subject_width]
+        row[bg_idx: subject_width] = bg
  
 
 def _shift_img_left_to_right(left_edge, right_edge, img):
