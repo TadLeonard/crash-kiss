@@ -16,7 +16,7 @@ def config(**kw_overrides):
     conf.update(kw_overrides)
     return conf
 
-_side_names = "left", "right", "up", "down"
+side_names = "left", "right", "up", "down"
 
 _config_defaults = dict(
     neg_sample_size=5,
@@ -24,6 +24,7 @@ _config_defaults = dict(
     bg_change_tolerance=7,
     relative_sides=("left", "right"),
     chunksize=300,
+    bg_value=None,
 )
 
 _orientors = dict(
@@ -44,7 +45,7 @@ class Subject(object):
         used_sides = config["relative_sides"]
         self._sides = tuple(self._make_side(side)
                             if side in used_sides else None
-                            for side in _side_names)
+                            for side in side_names)
         self._active_sides = filter(None, self._sides)
         self.left, self.right, self.up, self.down = self._sides
         self.img = img
@@ -117,13 +118,19 @@ class Side(object):
     @property
     def background(self):
         if self._background is None:
-            s_size = self._config["neg_sample_size"] 
-            self._background = get_background(self.view, s_size)
+            user_defined_bg = self._config["bg_value"]
+            if user_defined_bg is not None:
+                bg = np.empty((self.view.shape[0], 3), dtype=np.uint8)
+                bg[::] = user_defined_bg
+                self._background = bg
+            else:
+                s_size = self._config["neg_sample_size"] 
+                self._background = get_background(self.view, s_size)
         return self._background
 
     @background.setter
-    def background(self, precomupted_background):
-        self._background = precomputed_background
+    def background(self, precomputed_val):
+        self._background = precomputed_val
 
     def __iter__(self): 
         return iter(self.edge)
@@ -161,6 +168,7 @@ def get_edge(img, background, config):
             fg = _find_foreground(img_slice, bg, config)
             sub_edge = np.argmax(fg, axis=1)
             nz_sub_edge = sub_edge != 0
+            
             sub_edge[nz_sub_edge] += prev_idx
             edge[start: stop] = sub_edge
     return edge
@@ -195,13 +203,12 @@ def _get_contiguous_slice(img, z_edge, offset):
         raise StopIteration
     stop = np.argmin(z_edge[start:])
     start += offset
-    if not stop:
+    stop += start
+    if stop == start:
         if z_edge[-1]:
             stop = img.shape[0]
         else:
-            stop = start + 1 
-    else:
-        stop += offset
+            stop += 1
     return img[start: stop], start, stop 
 
 
@@ -217,7 +224,7 @@ def _find_foreground(img, background, config):
     elif is_num and background > 200:
         diff = background - img > threshold
     else:
-        diff = np.abs((img - background) > threshold)
+        diff = np.abs(img - background) > threshold
     return np.all(diff, axis=2)
 
 
