@@ -63,6 +63,7 @@ _EDGE_REVEAL = [0, 255, 0], [255, 0, 0], [255, 255, 0], [0, 255, 255]
 def reveal_edges(subject, reveal_width):
     """Highlights the left, right, upper, and lower edges of an image
     with green, red, yellow, and cyan."""
+    _ = subject.edges  # process edges before mutating the image
     for side, color in zip(subject, _EDGE_REVEAL):
         view = side.view
         left_col = view[::, 0].copy()
