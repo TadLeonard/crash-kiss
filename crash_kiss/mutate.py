@@ -13,15 +13,22 @@ def center_smash_image(edges, img):
 
 
 def wall_smash_image(subject):
-    """Mutates a numpy array of an image so that the subject
-    is smashed up against one of the image's borders."""
-    im = subject.img
-    target = im.shape[1]
-    rowlens = subject.right.edge - subject.left.edge
-    
-    for row, l, r in zip(im, subject.left, subject.right):
-        pass
-        
+    """Mutates a numpy array of an image so that the subject is smashed up
+    against one of the image's borders. The left (relative to the subject)
+    border is used, so the caller must provide a properly flipped or rotated
+    view of the image array to smash the subject against the desired
+    border."""
+    view = subject.left.view
+    l_edge = subject.left.edge
+    bg = subject.right.background
+    n_cols = view.shape[1]
+    bg_idx = n_cols - l_edge
+    for row, l_idx, bg_idx, bg in zip(view, l_edge, bg_idx, bg):
+        if not l_idx:
+            continue
+        row[0: bg_idx] = row[l_idx:]
+        row[bg_idx:] = bg
+ 
 
 def _shift_img_left_to_right(left_edge, right_edge, img):
     target_idx = row.shape[0]  # shift to end of img initially
