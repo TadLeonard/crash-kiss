@@ -245,13 +245,3 @@ def _simplify_background(background, config):
             break  # we've simplified the background as much as we can
     return background
 
-
-def _sliding_window(iterable, size):
-    it = iter(iterable)
-    win = deque((next(it, None) for _ in xrange(size)), maxlen=size)
-    yield win
-    append = win.append
-    for e in it:
-        append(e)
-        yield win
-
