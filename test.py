@@ -1,6 +1,7 @@
 import os
 import mahotas
 import numpy as np
+import pytest
 from crash_kiss import edge
 
 
@@ -109,3 +110,8 @@ def test_column_blocks():
         assert np.all(chunk[rows, :-1] == color)
     
 
+def test_bad_edge_config():
+    edge.config(threshold=10)  # okay
+    with pytest.raises(Exception):
+        edge.config(fleshold=10)  # not okay
+   
