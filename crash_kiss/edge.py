@@ -168,31 +168,31 @@ def get_edge(img, background, config):
             fg = _find_foreground(img_slice, bg, config)
             sub_edge = np.argmax(fg, axis=1)
             nz_sub_edge = sub_edge != 0
-            
             sub_edge[nz_sub_edge] += prev_idx
             edge[start: stop] = sub_edge
     return edge
 
 
-def get_strict_edges(img, background, config):
-    """Like `get_edge`, but a 2D array is returned. Each column
-    in this array represents another "edge" in the image. This way we can
+def get_many_edges(img, background, config):
+    """Like `get_edge`, but multiple 2D arrays are generated. Each
+    generated array represents another "edge" in the image. This way we can
     detect all the edges of a subject that overlaps itself."""
     bg = _simplify_background(background, config)
     bg_is_array = isinstance(bg, np.ndarray)
-    chunks = _column_blocks(img, conig["chunksize"])
-    edge = np.zeros((img.shape[0], 1), dtype=np.uint16)
+    chunks = _column_blocks(img, config["chunksize"])
+    edge = np.zeros(img.shape[0], dtype=np.uint16)
+    
     for img_chunk, prev_idx in chunks:
         for img_slice, start, stop in _row_slices(img_chunk, edge):
-             if bg_is_array:
+            if bg_is_array:
                 bg = background[start: stop]
             fg = _find_foreground(img_slice, bg, config)
             sub_edge = np.argmax(fg, axis=1)
             nz_sub_edge = sub_edge != 0
-            
             sub_edge[nz_sub_edge] += prev_idx
             edge[start: stop] = sub_edge
     return edge
+
 
 
 def _column_blocks(img, chunksize):
@@ -240,19 +240,15 @@ def _find_foreground(img, background, config):
     by checking to see if the background value is near 0 or 255."""
     threshold = config["threshold"]
     is_num = isinstance(background, (float, int))
-    if is_num and background < 50:
+    if is_num and threshold <= 1:
+        diff = img != background 
+    elif is_num and background < 50:
         diff = img - background > threshold
     elif is_num and background > 200:
         diff = background - img > threshold
     else:
         diff = np.abs(img - background) > threshold
     return np.all(diff, axis=2)
-
-
-def _find_strict_foreground(img, background, config):
-    """Direct comparison of the foreground to the background. Usefull if we
-    know that the background color can not possibly exist in the subject."""
-    return np.all(img != background, axis=2)
 
 
 def _simplify_background(background, config):
