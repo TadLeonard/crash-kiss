@@ -60,16 +60,18 @@ def _shift_img_left_to_right(left_edge, right_edge, img):
 _EDGE_REVEAL = [0, 255, 0], [255, 0, 0], [255, 255, 0], [0, 255, 255]
 
 
-def reveal_edges(subject, reveal_width):
+def reveal_edges(subject, width):
     """Highlights the left, right, upper, and lower edges of an image
     with green, red, yellow, and cyan."""
+    if not width:
+        width = max(2, subject.img.shape[0] // 50)
     _ = subject.edges  # process edges before mutating the image
     for side, color in zip(subject, _EDGE_REVEAL):
         view = side.view
         left_col = view[::, 0].copy()
         cols = side.edge.copy()
         rows = np.arange(view.shape[0])
-        subtracts = [0] + ([1] * (reveal_width - 1))
+        subtracts = [0] + ([1] * (width - 1))
         for n in subtracts:
             nz_cols = cols != 0
             cols[nz_cols] -= n
