@@ -113,6 +113,7 @@ class Side(object):
         if self._edge is None:
             bg = self.background
             self._edge = get_edge(self.view, bg, self._config)
+            get_all_edges(self.view, bg, self._config)
         return self._edge
 
     @property
@@ -144,6 +145,7 @@ def get_background(img, sample_size):
     return bg
 
 
+@profile
 def get_edge(img, background, config):
     """Finds the 'edge' of the subject of an image based on a background
     value or an array of background values. Returns an array of indices that
@@ -181,7 +183,6 @@ def get_many_edges(img, background, config):
     bg_is_array = isinstance(bg, np.ndarray)
     chunks = _column_blocks(img, config["chunksize"])
     edge = np.zeros(img.shape[0], dtype=np.uint16)
-    
     for img_chunk, prev_idx in chunks:
         for img_slice, start, stop in _row_slices(img_chunk, edge):
             if bg_is_array:
@@ -193,6 +194,39 @@ def get_many_edges(img, background, config):
             edge[start: stop] = sub_edge
     return edge
 
+
+@profile
+def get_all_edges(img, background, config): 
+    bg = _simplify_background(background, config)
+    fg = _find_foreground(img, bg, config)
+    return list(_all_edges(fg, config))
+
+
+@profile
+def _all_edges(foreground, config):
+    width = foreground.shape[1]
+    max_depth = 99
+    for row in foreground:
+        yield list(_row_edges(row, max_depth))
+
+
+@profile
+def _row_edges(row, max_depth=999):
+    prev_stop = 0
+    for _ in range(max_depth):
+        start = np.argmax(row[prev_stop:])
+        if not start:
+            break
+        start += prev_stop
+        stop = np.argmin(row[start:])
+        if stop == 0:
+            stop = row.shape[0]
+            yield start, stop
+            break
+        else:
+            stop += start
+        yield start, stop
+        prev_stop = stop
 
 
 def _column_blocks(img, chunksize):
@@ -233,6 +267,7 @@ def _get_contiguous_slice(img, z_edge, offset):
     return img[start: stop], start, stop 
 
 
+@profile
 def _find_foreground(img, background, config):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
