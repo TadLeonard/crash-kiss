@@ -19,7 +19,7 @@ def config(**kw_overrides):
 side_names = "left", "right", "up", "down"
 
 _config_defaults = dict(
-    neg_sample_size=5,
+    bg_sample_size=5,
     threshold=10,
     bg_change_tolerance=7,
     relative_sides=("left", "right"),
@@ -125,7 +125,7 @@ class Side(object):
                 bg[::] = user_defined_bg
                 self._background = bg
             else:
-                s_size = self._config["neg_sample_size"] 
+                s_size = self._config["bg_sample_size"] 
                 self._background = get_background(self.view, s_size)
         return self._background
 

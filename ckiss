@@ -25,7 +25,7 @@ parser.add_argument("-O", "--show-with", help="view result with this command",
                     default="gpicview {0} > /dev/null 2>&1")
 procargs = parser.add_argument_group("processing")
 _conf = edge.config()  # defaults
-procargs.add_argument("--bg-change-tolerance", type=int,
+procargs.add_argument("-c", "--bg-change-tolerance", type=int,
                       help="used to reduce the foreground vs. background"
                            "comparison in edge detection",
                       default=_conf["bg_change_tolerance"])
@@ -40,10 +40,10 @@ procargs.add_argument("-b", "--bg-value", type=lambda x: map(int, x.split(",")),
 procargs.add_argument("-B", "--bg-side", choices=edge.side_names, default=None,
                       help="Sample the background from this side only. "
                            "Useful when the subject bleeds into one side.")
-procargs.add_argument("--neg-sample-size", type=int,
+procargs.add_argument("--bg-sample-size", type=int,
                       help="num pixels of edges space to use in the "
                            "sampling of the background color",
-                      default=_conf["neg_sample_size"])
+                      default=_conf["bg_sample_size"])
 procargs.add_argument("-r", "--relative-sides", type=lambda x: x.split(","),
                       help="side of the subject (after rotation) to act on",
                       default=_conf["relative_sides"])
@@ -77,7 +77,7 @@ def run():
     # This is where we should process each image for edge detection...
     config = edge.config(threshold=args.threshold,
                          bg_change_tolerance=args.bg_change_tolerance,
-                         neg_sample_size=args.neg_sample_size,
+                         bg_sample_size=args.neg_sample_size,
                          relative_sides=args.relative_sides,
                          chunksize=args.chunksize,
                          bg_value=args.bg_value,)
