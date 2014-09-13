@@ -25,7 +25,7 @@ parser.add_argument("-O", "--show-with", help="view result with this command",
                     default="gpicview {0} > /dev/null 2>&1")
 procargs = parser.add_argument_group("processing")
 _conf = edge.config()  # defaults
-procargs.add_argument("--bg-change-tolerance", type=int,
+procargs.add_argument("-c", "--bg-change-tolerance", type=int,
                       help="used to reduce the foreground vs. background"
                            "comparison in edge detection",
                       default=_conf["bg_change_tolerance"])
