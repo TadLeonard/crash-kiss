@@ -62,7 +62,7 @@ def test_edge_below_threshold():
     are not detected as edges of the foreground"""
     img = _get_test_img()
     img[::, 4:6] = [230, 230, 230]
-    config = edge.config(threshold=60, neg_sample_size=1)
+    config = edge.config(threshold=60, bg_sample_size=1)
     sub = edge.Subject(img=img, config=config)
     nz_edge = sub.left.edge != 0
     nz_edge = sub.left.edge[nz_edge]
@@ -74,7 +74,7 @@ def test_edge_above_threshold():
     so that it's detected as an edge of the foreground"""
     img = _get_test_img()
     img[::, 4:6:] = [10, 10, 10]  # a very dark vert. line on the left side
-    config = edge.config(threshold=60, neg_sample_size=1)  # large threshold
+    config = edge.config(threshold=60, bg_sample_size=1)  # large threshold
     subj = edge.Subject(img=img, config=config)
     l_edge = subj.left.edge
     assert np.all(l_edge >= 4)
@@ -84,7 +84,7 @@ def test_edge_below_threshold_2():
     img = _get_test_img()
     img[::, 4:6:] = [30, 30, 30]  # a very dark vert. line on the left side
     img[80, 80] = [0, 0, 0]  # black dot near the middle
-    silly_config = edge.config(threshold=227, neg_sample_size=1)
+    silly_config = edge.config(threshold=227, bg_sample_size=1)
     huge_threshold = edge.Subject(img=img, config=silly_config)
     # the dark line should not be picked up as an edge due to the huge thresh
     assert np.all(huge_threshold.left.edge[:5] == 0)
