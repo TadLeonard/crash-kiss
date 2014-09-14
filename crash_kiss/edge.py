@@ -230,14 +230,13 @@ def _row_edges(row, max_depth=999):
 def _column_blocks(img, chunksize):
     n_cols = img.shape[1]
     chunksize = min(chunksize, n_cols)
-    n_chunks = ((n_cols // chunksize) // 2) + 1 
-    chunks = [chunksize * n for n in range(1, n_chunks)]
-    if not chunks or chunks[-1] < n_cols:
-        chunks.append(n_cols - 1)  # n_cols - 1 + 1 == n_cols
-    prev_idx = 0
-    for idx in chunks:
-        yield img[::, prev_idx: idx + 1], prev_idx
-        prev_idx = idx
+    n_chunks = (3 * (n_cols // chunksize) // 4) + 1 
+    stop_indices = [chunksize * n for n in range(1, n_chunks)]
+    if not stop_indices or stop_indices[-1] < n_cols:
+        stop_indices.append(n_cols)
+    start_indices = [0] + [s - 1 for s in stop_indices[:-1]]
+    for start, stop in zip(start_indices, stop_indices):
+        yield img[::, start: stop], start
 
 
 def _row_slices(img, edge):
@@ -250,13 +249,10 @@ def _row_slices(img, edge):
 
 
 def _get_contiguous_slice(img, z_edge, offset):
-    z_edge = z_edge[offset:]
-    start = np.argmax(z_edge)
-    if not start and not z_edge[start]:
+    start = np.argmax(z_edge[offset:]) + offset
+    if start == offset and not z_edge[start]:
         raise StopIteration
-    stop = np.argmin(z_edge[start:])
-    start += offset
-    stop += start
+    stop = np.argmin(z_edge[start:]) + start
     if stop == start:
         if z_edge[-1]:
             stop = img.shape[0]

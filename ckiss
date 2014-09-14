@@ -77,7 +77,7 @@ def run():
     # This is where we should process each image for edge detection...
     config = edge.config(threshold=args.threshold,
                          bg_change_tolerance=args.bg_change_tolerance,
-                         bg_sample_size=args.neg_sample_size,
+                         bg_sample_size=args.bg_sample_size,
                          relative_sides=args.relative_sides,
                          chunksize=args.chunksize,
                          bg_value=args.bg_value,)
