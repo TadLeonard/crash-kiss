@@ -110,8 +110,22 @@ def test_column_blocks():
         assert np.all(chunk[rows, :-1] == color)
     
 
+def test_overlapping_column_blocks():
+    """Make sure that columns sliced from the image overlap by
+    one pixel so that we don't see issue #1 again"""
+    img = _get_test_img()
+    chunks = list(edge._column_blocks(img, chunksize=10))
+    for n, (chunk, _) in enumerate(chunks):
+        color = n * 10
+        chunk[::] = color
+    assert chunks, "empty loop"
+    for c, _ in chunks[:-1]:
+        assert np.median(c[::, :-1]) - np.median(c[::, -1]) == -10
+
+
 def test_bad_edge_config():
     edge.config(threshold=10)  # okay
     with pytest.raises(Exception):
         edge.config(fleshold=10)  # not okay
    
+
