@@ -5,6 +5,7 @@ from __future__ import division
 from collections import namedtuple
 from itertools import tee
 import numpy as np
+from six.moves import range
 from crash_kiss import util
 
 
@@ -164,6 +165,7 @@ def get_edge(img, background, config):
     edge = np.zeros(img.shape[0], dtype=np.uint16)
     chunks = _column_blocks(img, config["chunksize"])
     for img_chunk, prev_idx in chunks:
+      #  img_chunk *= 0.9
         for img_slice, start, stop in _row_slices(img_chunk, edge):
             if bg_is_array:
                 bg = background[start: stop]
@@ -212,21 +214,17 @@ def _all_edges(foreground, config):
 
 @profile
 def _row_edges(row, max_depth=999):
-    prev_stop = 0
+    stop = 0
     for _ in range(max_depth):
-        start = np.argmax(row[prev_stop:])
-        if not start:
+        start = np.argmax(row[stop:]) + stop
+        if start == stop:
             break
-        start += prev_stop
-        stop = np.argmin(row[start:])
-        if stop == 0:
-            stop = row.shape[0]
-            yield start, stop
+        stop = np.argmin(row[start:]) + start
+        if stop == start:
+            yield start, row.shape[0]
             break
         else:
-            stop += start
-        yield start, stop
-        prev_stop = stop
+            yield start, stop
 
 
 def _column_blocks(img, chunksize):
