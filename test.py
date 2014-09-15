@@ -97,6 +97,20 @@ def test_edge_below_threshold_2():
     assert np.all(huge_threshold.left.edge[:5] != 0)
 
 
+def test_edge_at_0():
+    """Ensure that we don't repeat the mistakes of issue #2.
+    Valid edges can be found at index == 0."""
+    img = _get_test_img()
+    img[::, 0] = [0, 0, 0]  # black line at very left edge
+    img[5, 0] = [255, 255, 255]  # ...except one white dot
+    config = edge.config(bg_value=255)
+    sub = edge.Subject(img=img, config=config)
+    e = sub.left.edge
+    assert np.all(e[:5] == 0)
+    assert np.all(e[6:] == 0)
+    assert e[5] != 0
+
+
 def test_column_blocks():
     img = _get_test_img()
     chunksize = 10
