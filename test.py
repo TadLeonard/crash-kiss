@@ -1,4 +1,5 @@
 import os
+import itertools
 import mahotas
 import numpy as np
 import pytest
@@ -121,6 +122,67 @@ def test_overlapping_column_blocks():
     assert chunks, "empty loop"
     for c, _ in chunks[:-1]:
         assert np.median(c[::, :-1]) - np.median(c[::, -1]) == -10
+
+
+def test_rbg_select_shape():
+    """Make sure the RGB select feature creates a view of the image
+    that is the correct shape. Each side's background sampling should
+    also have a restricted third axis."""
+    img = _get_test_img()
+    no_red = edge.config(rgb_select=[1,2])
+    only_red = edge.config(rgb_select=[0])
+    cool = edge.Subject(img=img, config=no_red)
+    hot = edge.Subject(img=img, config=only_red)
+    assert cool.left.rgb_view.shape[2] == 2
+    assert hot.left.rgb_view.shape[2] == 1
+    assert cool.left.background.shape[2] == 2
+    assert hot.left.background.shape[2] == 1
+
+
+def _get_test_rgb_views():
+    """Make sure the RGB select feature selects the correct colors"""
+    img = _get_test_img()
+    colors = range(3)
+    ones = list(itertools.combinations(colors, 1))
+    twos = list(itertools.combinations(colors, 2))
+    threes = list(itertools.combinations(colors, 3))
+    all_selects = list(itertools.chain(ones, twos, threes))
+    configs = [edge.config(rgb_select=s) for s in all_selects]
+    img[:, :, 0] = 0  # R -> 0
+    img[:, :, 1] = 1  # B -> 1
+    img[:, :, 2] = 2  # G -> 2
+    subjs = [edge.Subject(img=img, config=c) for c in configs] 
+    return zip(subjs, configs)
+   
+
+def test_test_rgb_views():
+    """Make sure we're not testing nothing"""
+    assert len(_get_test_rgb_views()) == 7
+
+
+def test_rgb_view_bg_value():
+    """Make sure each `Side` background is made up of only colors
+    specified in the 'rgb_select' config value"""
+    for sub, conf in _get_test_rgb_views():
+        bgs = [side.background for side in sub]
+        select = conf["rgb_select"]
+        for bg in bgs:
+            assert np.all(bg == select)
+    
+
+def test_rgb_view_view_value():
+    """Make sure each `Side` view is restricted based on the
+    'rgb_select' config value"""
+    for sub, conf in _get_test_rgb_views():
+        views = [side.rgb_view for side in sub]
+        select = conf["rgb_select"]
+        for view in views:
+            assert np.all(view == select)
+    
+
+#def test_rgb_view_edge():
+#    """Ensure that edge finding behavior changes based on
+#    a restricted RGB view"""
 
 
 def test_bad_edge_config():
