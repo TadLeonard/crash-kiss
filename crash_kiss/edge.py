@@ -111,6 +111,7 @@ class Side(object):
         return self._view
 
     @property
+    @profile
     def rgb_view(self):
         """Provide a view of the image that is potentially restricted to
         a subset of the RGB(A?) values."""
@@ -123,7 +124,7 @@ class Side(object):
             if select is None or len(select) == view.shape[2]:
                 self._rgb_view = view
             elif len(select) == 1:
-                self._rgb_view = view[:, :, select]
+                self._rgb_view = view[:, :, select[0]]
             elif select == [0, 1]:
                     self._rgb_view = view[:, :, :2]
             elif select == [1, 2]:
@@ -168,7 +169,9 @@ def get_background(img, sample_size):
     """Returns an array of median RGB values for the background of the image
     based on the values along the image's edges."""
     bg = np.median(img[::, :sample_size:], axis=1)
-    bg = bg.reshape((bg.shape[0], 1, bg.shape[1]))
+    if len(bg.shape) >= 2:
+        # we have to reshape for comparison to the 3D RGBA array view
+        bg = bg.reshape((bg.shape[0], 1, bg.shape[1]))
     return bg
 
 
@@ -248,7 +251,10 @@ def _find_foreground(img, background, config):
         diff = background - img > threshold
     else:
         diff = np.abs(img - background) > threshold
-    return np.all(diff, axis=2)
+    if len(diff.shape) == 3:
+        return np.all(diff, axis=2)  # we're using a 3D array
+    else:
+        return diff  # it's a 2D array of just one of RGB or A
 
 
 def _simplify_background(background, config):
