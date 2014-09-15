@@ -43,10 +43,9 @@ class Subject(object):
         self._config = config
         self._img = img
         used_sides = config["relative_sides"]
-        self._sides = tuple(self._make_side(side)
-                            if side in used_sides else None
-                            for side in side_names)
-        self._active_sides = filter(None, self._sides)
+        self._sides = tuple(self._make_side(side) for side in side_names)
+        self._active_sides = tuple(side for side in self._sides
+                                   if side.name in used_sides)
         self.left, self.right, self.up, self.down = self._sides
         self.img = img
 
@@ -86,8 +85,8 @@ class Side(object):
     (left to right, up to down, etc)"""
 
     def __init__(self, orientation, img=None, config=config()):
+        self.name = orientation
         self._edge = self._view = self._background = self._img = None
-        self._relative_side = orientation
         self._orient = _orientors[orientation]
         self.img = img
         self._config = config
