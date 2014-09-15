@@ -131,7 +131,9 @@ class Side(object):
             elif select == [0, 2]:
                     self._rgb_view = view[:, :, ::2]
             else:
-                raise NotImplementedError("Unsupported RGB view: " + select)
+                from warnings import warn
+                warn("RGB select {0} results in a copy!".format(select)) 
+                self._rgb_view = view[:, :, select]
         return self._rgb_view
 
     @property
