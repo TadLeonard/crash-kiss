@@ -144,6 +144,10 @@ def get_background(img, sample_size):
     return bg
 
 
+_EDGE_PLACEHOLDER = 0xFFFF  # for valid edges at index 0
+
+
+@profile
 def get_edge(img, background, config):
     """Finds the 'edge' of the subject of an image based on a background
     value or an array of background values. Returns an array of indices that
@@ -170,6 +174,9 @@ def get_edge(img, background, config):
             nz_sub_edge = sub_edge != 0
             sub_edge[nz_sub_edge] += prev_idx
             edge[start: stop] = sub_edge
+            if not prev_idx and False:
+                edge[fg[::, 0]]= _EDGE_PLACEHOLDER
+    edge[edge == _EDGE_PLACEHOLDER] = 0
     return edge
 
 
