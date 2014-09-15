@@ -25,6 +25,7 @@ _config_defaults = dict(
     relative_sides=("left", "right"),
     chunksize=300,
     bg_value=None,
+    rgb_select=None,
 )
 
 _orientors = dict(
@@ -87,6 +88,7 @@ class Side(object):
 
     def __init__(self, orientation, img=None, config=config()):
         self._edge = self._view = self._background = self._img = None
+        self._rgb_view = None
         self._relative_side = orientation
         self._orient = _orientors[orientation]
         self.img = img
@@ -109,10 +111,34 @@ class Side(object):
         return self._view
 
     @property
+    def rgb_view(self):
+        """Provide a view of the image that is potentially restricted to
+        a subset of the RGB(A?) values."""
+        if self._rgb_view is None:
+            select = self._config["rgb_select"]
+            view = self.view
+            # We CANNOT use advanced indexing here!
+            # Copies of large images are just too expensive.
+            # This means we get this horrible switch statement.
+            if select is None or len(select) == view.shape[2]:
+                self._rgb_view = view
+            elif len(select) == 1:
+                self._rgb_view = view[:, :, select]
+            elif select == [0, 1]:
+                    self._rgb_view = view[:, :, :2]
+            elif select == [1, 2]:
+                    self._rgb_view = view[:, :, 1:3]
+            elif select == [0, 2]:
+                    self._rgb_view = view[:, :, ::2]
+            else:
+                raise NotImplementedError("Unsupported RGB view: " + select)
+        return self._rgb_view
+
+    @property
     def edge(self):
         if self._edge is None:
             bg = self.background
-            self._edge = get_edge(self.view, bg, self._config)
+            self._edge = get_edge(self.rgb_view, bg, self._config)
         return self._edge
 
     @property
@@ -120,12 +146,12 @@ class Side(object):
         if self._background is None:
             user_defined_bg = self._config["bg_value"]
             if user_defined_bg is not None:
-                bg = np.empty((self.view.shape[0], 3), dtype=np.uint8)
+                bg = np.empty((self.rgb_view.shape[0], 3), dtype=np.uint8)
                 bg[::] = user_defined_bg
                 self._background = bg
             else:
                 s_size = self._config["bg_sample_size"] 
-                self._background = get_background(self.view, s_size)
+                self._background = get_background(self.rgb_view, s_size)
         return self._background
 
     @background.setter
