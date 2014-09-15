@@ -174,7 +174,7 @@ def get_edge(img, background, config):
             nz_sub_edge = sub_edge != 0
             sub_edge[nz_sub_edge] += prev_idx
             edge[start: stop] = sub_edge
-            if not prev_idx and False:
+            if not prev_idx:
                 edge[fg[::, 0]]= _EDGE_PLACEHOLDER
     edge[edge == _EDGE_PLACEHOLDER] = 0
     return edge
