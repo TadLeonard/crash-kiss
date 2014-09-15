@@ -44,8 +44,8 @@ procargs.add_argument("--bg-sample-size", type=int,
                       help="num pixels of edges space to use in the "
                            "sampling of the background color",
                       default=_conf["bg_sample_size"])
-procargs.add_argument("--rgb-select", default=_conf["rgb_select"],
-                      type=lambda x: map(int, x.split(",")),
+procargs.add_argument("-g", "--rgb-select", default=_conf["rgb_select"],
+                      type=lambda x: sorted(map(int, x.split(","))),
                       help="Find edges based on a subset of RGB(A?) by "
                            "passing a comma-sep list of indices")
 procargs.add_argument("-r", "--relative-sides", type=lambda x: x.split(","),
