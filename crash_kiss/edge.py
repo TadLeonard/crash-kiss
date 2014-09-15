@@ -107,7 +107,7 @@ class Side(object):
         if self._view is None:
             self._view = self._orient(self.img)
         return self._view
-
+#
     @property
     def edge(self):
         if self._edge is None:
@@ -147,7 +147,7 @@ def get_background(img, sample_size):
 _EDGE_PLACEHOLDER = 0xFFFF  # for valid edges at index 0
 
 
-@profile
+#@profile
 def get_edge(img, background, config):
     """Finds the 'edge' of the subject of an image based on a background
     value or an array of background values. Returns an array of indices that
@@ -176,8 +176,9 @@ def get_edge(img, background, config):
             edge[start: stop] = sub_edge
             if not prev_idx:
                 edge[fg[::, 0]]= _EDGE_PLACEHOLDER
+    mask = edge == 0
     edge[edge == _EDGE_PLACEHOLDER] = 0
-    return edge
+    return np.ma.masked_array(edge, mask=mask, copy=False)
 
 
 def _column_blocks(img, chunksize):
