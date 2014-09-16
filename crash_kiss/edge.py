@@ -82,6 +82,20 @@ class Subject(object):
             yield side
 
 
+
+_rgb_select = {
+    (0, 1): lambda view: view[:, :, :2],
+    (1, 2): lambda view: view[:, :, 1:3],
+    (0, 2): lambda view: view[:, :, ::2],
+    (0, 3): lambda view: view[:, :, ::3],
+    (2, 3): lambda view: view[:, :, 2:4],
+    (1, 3): lambda view: view[:, :, 1::2],
+    (2, 3): lambda view: view[:, :, 2:4],
+    (0, 1, 2): lambda view: view[:, :, :3],
+    (1, 2, 3): lambda view: view[:, :, 1:4],
+}
+
+
 class Side(object):
     """A view of an image's subject from a certain perspective
     (left to right, up to down, etc)"""
@@ -111,31 +125,35 @@ class Side(object):
         return self._view
 
     @property
-    @profile
     def rgb_view(self):
         """Provide a view of the image that is potentially restricted to
         a subset of the RGB(A?) values."""
         if self._rgb_view is None:
-            select = self._config["rgb_select"]
-            view = self.view
-            # We CANNOT use advanced indexing here!
-            # Copies of large images are just too expensive.
-            # This means we get this horrible switch statement.
-            if select is None or len(select) == view.shape[2]:
-                self._rgb_view = view
-            elif len(select) == 1:
-                self._rgb_view = view[:, :, select[0]]
-            elif select == [0, 1]:
-                    self._rgb_view = view[:, :, :2]
-            elif select == [1, 2]:
-                    self._rgb_view = view[:, :, 1:3]
-            elif select == [0, 2]:
-                    self._rgb_view = view[:, :, ::2]
-            else:
+            self._set_rgb_view()
+        return self._rgb_view
+
+    def _set_rgb_view(self):
+        select = self._get_rgb_select()
+        view = self.view
+        # We CANNOT use advanced indexing here!
+        # Copies of large images are just too expensive.
+        # This means we get this horrible switch statement.
+        if select == range(view.shape[2]):
+            self._rgb_view = view
+        elif len(select) == 1:
+            self._rgb_view = view[:, :, select[0]]
+        else:
+            try:
+                self._rgb_view = _rgb_select[select](view)
+            except KeyError:
                 from warnings import warn
                 warn("RGB select {0} results in a copy!".format(select)) 
                 self._rgb_view = view[:, :, select]
-        return self._rgb_view
+
+    def _get_rgb_select(self):
+        select = self._config["rgb_select"]
+        select = select or range(self.img.shape[2])
+        return tuple(sorted(set(select)))
 
     @property
     def edge(self):
