@@ -26,6 +26,7 @@ _config_defaults = dict(
     relative_sides=("left", "right"),
     chunksize=300,
     bg_value=None,
+    rgb_select=None,
 )
 
 _orientors = dict(
@@ -82,12 +83,27 @@ class Subject(object):
             yield side
 
 
+
+_rgb_select = {
+    (0, 1): lambda view: view[:, :, :2],
+    (1, 2): lambda view: view[:, :, 1:3],
+    (0, 2): lambda view: view[:, :, ::2],
+    (0, 3): lambda view: view[:, :, ::3],
+    (2, 3): lambda view: view[:, :, 2:4],
+    (1, 3): lambda view: view[:, :, 1::2],
+    (2, 3): lambda view: view[:, :, 2:4],
+    (0, 1, 2): lambda view: view[:, :, :3],
+    (1, 2, 3): lambda view: view[:, :, 1:4],
+}
+
+
 class Side(object):
     """A view of an image's subject from a certain perspective
     (left to right, up to down, etc)"""
 
     def __init__(self, orientation, img=None, config=config()):
         self._edge = self._view = self._background = self._img = None
+        self._rgb_view = None
         self._relative_side = orientation
         self._orient = _orientors[orientation]
         self.img = img
@@ -110,11 +126,41 @@ class Side(object):
         return self._view
 
     @property
+    def rgb_view(self):
+        """Provide a view of the image that is potentially restricted to
+        a subset of the RGB(A?) values."""
+        if self._rgb_view is None:
+            self._set_rgb_view()
+        return self._rgb_view
+
+    def _set_rgb_view(self):
+        select = self._get_rgb_select()
+        view = self.view
+        # We CANNOT use advanced indexing here!
+        # Copies of large images are just too expensive.
+        # This means we get this horrible switch statement.
+        if select == range(view.shape[2]):
+            self._rgb_view = view
+        elif len(select) == 1:
+            self._rgb_view = view[:, :, select[0]]
+        else:
+            try:
+                self._rgb_view = _rgb_select[select](view)
+            except KeyError:
+                from warnings import warn
+                warn("RGB select {0} results in a copy!".format(select)) 
+                self._rgb_view = view[:, :, select]
+
+    def _get_rgb_select(self):
+        select = self._config["rgb_select"]
+        select = select or range(self.img.shape[2])
+        return tuple(sorted(set(select)))
+
+    @property
     def edge(self):
         if self._edge is None:
             bg = self.background
-            self._edge = get_edge(self.view, bg, self._config)
-            get_all_edges(self.view, bg, self._config)
+            self._edge = get_edge(self.rgb_view, bg, self._config)
         return self._edge
 
     @property
@@ -122,12 +168,12 @@ class Side(object):
         if self._background is None:
             user_defined_bg = self._config["bg_value"]
             if user_defined_bg is not None:
-                bg = np.empty((self.view.shape[0], 3), dtype=np.uint8)
+                bg = np.empty((self.rgb_view.shape[0], 3), dtype=np.uint8)
                 bg[::] = user_defined_bg
                 self._background = bg
             else:
                 s_size = self._config["bg_sample_size"] 
-                self._background = get_background(self.view, s_size)
+                self._background = get_background(self.rgb_view, s_size)
         return self._background
 
     @background.setter
@@ -142,7 +188,9 @@ def get_background(img, sample_size):
     """Returns an array of median RGB values for the background of the image
     based on the values along the image's edges."""
     bg = np.median(img[::, :sample_size:], axis=1)
-    bg = bg.reshape((bg.shape[0], 1, bg.shape[1]))
+    if len(bg.shape) >= 2:
+        # we have to reshape for comparison to the 3D RGBA array view
+        bg = bg.reshape((bg.shape[0], 1, bg.shape[1]))
     return bg
 
 
@@ -252,7 +300,10 @@ def _find_foreground(img, background, config):
         diff = background - img > threshold
     else:
         diff = np.abs(img - background) > threshold
-    return np.all(diff, axis=2)
+    if len(diff.shape) == 3:
+        return np.all(diff, axis=2)  # we're using a 3D array
+    else:
+        return diff  # it's a 2D array of just one of RGB or A
 
 
 def _simplify_background(background, config):
