@@ -134,25 +134,29 @@ def test_rbg_select_shape():
     cool = edge.Subject(img=img, config=no_red)
     hot = edge.Subject(img=img, config=only_red)
     assert cool.left.rgb_view.shape[2] == 2
-    assert hot.left.rgb_view.shape[2] == 1
+    assert len(hot.left.rgb_view.shape) == 2
     assert cool.left.background.shape[2] == 2
-    assert hot.left.background.shape[2] == 1
+    assert len(hot.left.background.shape) == 1
 
 
 def _get_test_rgb_views():
     """Make sure the RGB select feature selects the correct colors"""
     img = _get_test_img()
-    colors = range(3)
-    ones = list(itertools.combinations(colors, 1))
-    twos = list(itertools.combinations(colors, 2))
-    threes = list(itertools.combinations(colors, 3))
-    all_selects = list(itertools.chain(ones, twos, threes))
-    configs = [edge.config(rgb_select=s) for s in all_selects]
+    configs = _get_all_rgb_configs()
     img[:, :, 0] = 0  # R -> 0
     img[:, :, 1] = 1  # B -> 1
     img[:, :, 2] = 2  # G -> 2
     subjs = [edge.Subject(img=img, config=c) for c in configs] 
     return zip(subjs, configs)
+
+
+def _get_all_rgb_configs():
+    colors = range(3)
+    ones = list(itertools.combinations(colors, 1))
+    twos = list(itertools.combinations(colors, 2))
+    threes = list(itertools.combinations(colors, 3))
+    all_selects = list(itertools.chain(ones, twos, threes))
+    return [edge.config(rgb_select=s) for s in all_selects]
    
 
 def test_test_rgb_views():
@@ -180,10 +184,39 @@ def test_rgb_view_view_value():
             assert np.all(view == select)
     
 
-#def test_rgb_view_edge():
-#    """Ensure that edge finding behavior changes based on
-#    a restricted RGB view"""
+def test_rgb_view_edge():
+    """Ensure that edge finding behavior changes based on
+    a restricted RGB view"""
+    img = _get_test_img()
+    only_red = edge.config(rgb_select=[0])
+    no_red = edge.config(rgb_select=[1, 2])
+    only_green = edge.config(rgb_select=[1])
+    only_blue = edge.config(rgb_select=[2])
+    red = edge.Subject(img=img, config=only_red)
+    cold = edge.Subject(img=img, config=no_red)
+    green = edge.Subject(img=img, config=only_green)
+    blue = edge.Subject(img=img, config=only_blue)
+    img[:] = [255, 255, 255]
+    img[:, 5] = [0, 255, 255]
+    img[:, 10] = [255, 0, 255]
+    assert np.all(red.left.edge == 5)
+    assert np.all(cold.left.edge == 0)
+    assert np.all(green.left.edge == 10)
+    assert np.all(blue.left.edge == 0)
+        
 
+def test_rgb_view_nocopy():
+    """Ensure that fancing indexing is avoided given a slicable
+    combination of RG and B. We're making sure that 
+    `Subject.<side>.rgb_view` is a VIEW of `Subject.img` instead of a copy."""
+    img = _get_test_img()
+    configs = _get_all_rgb_configs()
+    for i, config in enumerate(configs):
+        s = edge.Subject(img, config)
+        view = s.left.rgb_view
+        img[:] = i * 10
+        assert np.all(view == (i * 10))
+    
 
 def test_bad_edge_config():
     edge.config(threshold=10)  # okay
