@@ -103,7 +103,7 @@ class Side(object):
 
     def __init__(self, orientation, img=None, config=config()):
         self._edge = self._view = self._background = self._img = None
-        self._rgb_view = None
+        self._all_edges = self._rgb_view = None
         self._relative_side = orientation
         self._orient = _orientors[orientation]
         self.img = img
@@ -162,6 +162,13 @@ class Side(object):
             bg = self.background
             self._edge = get_edge(self.rgb_view, bg, self._config)
         return self._edge
+
+    @property
+    def all_edges(self):
+        if self._all_edges is None:
+            bg = self.background
+            self._all_edges = get_all_edges(self.rgb_view, bg, self._config)
+        return self._all_edges
 
     @property
     def background(self):
@@ -227,16 +234,12 @@ def get_edge(img, background, config):
 def get_all_edges(img, background, config): 
     bg = _simplify_background(background, config)
     fg = _find_foreground(img, bg, config)
-    return list(_all_edges(fg, config))
-
-
-def _all_edges(foreground, config):
     width = foreground.shape[1]
     max_depth = 99
-    for row in foreground:
-        yield list(_row_edges(row, max_depth))
+    return [list(_row_edges(row, max_depth)) for row in fg]
 
 
+#@profile
 def _row_edges(row, max_depth=999):
     stop = 0
     for _ in range(max_depth):
