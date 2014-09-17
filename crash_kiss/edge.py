@@ -190,6 +190,8 @@ def get_background(img, sample_size):
     if len(bg.shape) >= 2:
         # we have to reshape for comparison to the 3D RGBA array view
         bg = bg.reshape((bg.shape[0], 1, bg.shape[1]))
+    else:
+        bg = bg.reshape((bg.shape[0], 1))
     return bg
 
 
