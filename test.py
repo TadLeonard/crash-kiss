@@ -55,7 +55,7 @@ def test_no_edge():
     # Edges are masked arrays. A True value in a masked array indicates that
     # the value is masked, so we want white rows's edges to be masked
     # or == True
-    assert np.all(sub.left.edge[:5] == 0)
+    assert np.all(sub.left.edge[:5].mask)
     
 
 def test_edge_below_threshold():
@@ -88,14 +88,28 @@ def test_edge_below_threshold_2():
     silly_config = edge.config(threshold=227, bg_sample_size=1)
     huge_threshold = edge.Subject(img=img, config=silly_config)
     # the dark line should not be picked up as an edge due to the huge thresh
-    assert np.all(huge_threshold.left.edge[:5] == 0)
+    assert np.all(huge_threshold.left.edge[:5].mask)
     # still, at least one part of the image is completely black...
-    assert not np.all(huge_threshold.left.edge == 0)
+    assert not np.all(huge_threshold.left.edge.mask)
     assert huge_threshold.left.edge[80] == 80  # we've located the black dot
     img[:8:, 4:6:] = [0, 0, 0]  # black line!
     huge_threshold = edge.Subject(img=img, config=silly_config)
     # the black line is dark enough (difference is 255, which is > 247)
     assert np.all(huge_threshold.left.edge[:5] != 0)
+
+
+def test_edge_at_0():
+    """Ensure that we don't repeat the mistakes of issue #2.
+    Valid edges can be found at index == 0."""
+    img = _get_test_img()
+    img[::, 0] = [0, 0, 0]  # black line at very left edge
+    img[5, 0] = [255, 255, 255]  # ...except one white dot
+    config = edge.config(bg_value=255)
+    sub = edge.Subject(img=img, config=config)
+    e = sub.left.edge
+    assert np.all(e[:5] == 0)
+    assert np.all(e[6:] == 0)
+    assert e[5] != 0
 
 
 def test_column_blocks():
@@ -128,6 +142,8 @@ def test_rbg_select_shape():
     """Make sure the RGB select feature creates a view of the image
     that is the correct shape. Each side's background sampling should
     also have a restricted third axis."""
+    #TODO: At one point, 1D backgrounds seemed to work for 
+    # 2D views of the image. Later on, they didn't! Why!? 
     img = _get_test_img()
     no_red = edge.config(rgb_select=[1,2])
     only_red = edge.config(rgb_select=[0])
@@ -136,7 +152,7 @@ def test_rbg_select_shape():
     assert cool.left.rgb_view.shape[2] == 2
     assert len(hot.left.rgb_view.shape) == 2
     assert cool.left.background.shape[2] == 2
-    assert len(hot.left.background.shape) == 1
+    assert len(hot.left.background.shape) == 2
 
 
 def _get_test_rgb_views():
@@ -200,9 +216,9 @@ def test_rgb_view_edge():
     img[:, 5] = [0, 255, 255]
     img[:, 10] = [255, 0, 255]
     assert np.all(red.left.edge == 5)
-    assert np.all(cold.left.edge == 0)
+    assert np.all(cold.left.edge.mask)
     assert np.all(green.left.edge == 10)
-    assert np.all(blue.left.edge == 0)
+    assert np.all(blue.left.edge.mask)
         
 
 def test_rgb_view_nocopy():

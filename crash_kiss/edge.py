@@ -45,10 +45,9 @@ class Subject(object):
         self._config = config
         self._img = img
         used_sides = config["relative_sides"]
-        self._sides = tuple(self._make_side(side)
-                            if side in used_sides else None
-                            for side in side_names)
-        self._active_sides = filter(None, self._sides)
+        self._sides = tuple(self._make_side(side) for side in side_names)
+        self._active_sides = tuple(side for side in self._sides
+                                   if side.name in used_sides)
         self.left, self.right, self.up, self.down = self._sides
         self.img = img
 
@@ -102,6 +101,7 @@ class Side(object):
     (left to right, up to down, etc)"""
 
     def __init__(self, orientation, img=None, config=config()):
+        self.name = orientation
         self._edge = self._view = self._background = self._img = None
         self._all_edges = self._rgb_view = None
         self._relative_side = orientation
@@ -124,7 +124,7 @@ class Side(object):
         if self._view is None:
             self._view = self._orient(self.img)
         return self._view
-
+#
     @property
     def rgb_view(self):
         """Provide a view of the image that is potentially restricted to
@@ -198,9 +198,15 @@ def get_background(img, sample_size):
     if len(bg.shape) >= 2:
         # we have to reshape for comparison to the 3D RGBA array view
         bg = bg.reshape((bg.shape[0], 1, bg.shape[1]))
+    else:
+        bg = bg.reshape((bg.shape[0], 1))
     return bg
 
 
+_EDGE_PLACEHOLDER = 0xFFFF  # for valid edges at index 0
+
+
+#@profile
 def get_edge(img, background, config):
     """Finds the 'edge' of the subject of an image based on a background
     value or an array of background values. Returns an array of indices that
@@ -228,7 +234,11 @@ def get_edge(img, background, config):
             nz_sub_edge = sub_edge != 0
             sub_edge[nz_sub_edge] += prev_idx
             edge[start: stop] = sub_edge
-    return edge
+            if not prev_idx:
+                edge[fg[::, 0]]= _EDGE_PLACEHOLDER
+    mask = edge == 0
+    edge[edge == _EDGE_PLACEHOLDER] = 0
+    return np.ma.masked_array(edge, mask=mask, copy=False)
 
 
 def get_all_edges(img, background, config): 
