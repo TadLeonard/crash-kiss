@@ -55,7 +55,7 @@ def test_no_edge():
     # Edges are masked arrays. A True value in a masked array indicates that
     # the value is masked, so we want white rows's edges to be masked
     # or == True
-    assert np.all(sub.left.edge[:5] == 0)
+    assert np.all(sub.left.edge[:5].mask)
     
 
 def test_edge_below_threshold():
@@ -88,14 +88,28 @@ def test_edge_below_threshold_2():
     silly_config = edge.config(threshold=227, bg_sample_size=1)
     huge_threshold = edge.Subject(img=img, config=silly_config)
     # the dark line should not be picked up as an edge due to the huge thresh
-    assert np.all(huge_threshold.left.edge[:5] == 0)
+    assert np.all(huge_threshold.left.edge[:5].mask)
     # still, at least one part of the image is completely black...
-    assert not np.all(huge_threshold.left.edge == 0)
+    assert not np.all(huge_threshold.left.edge.mask)
     assert huge_threshold.left.edge[80] == 80  # we've located the black dot
     img[:8:, 4:6:] = [0, 0, 0]  # black line!
     huge_threshold = edge.Subject(img=img, config=silly_config)
     # the black line is dark enough (difference is 255, which is > 247)
     assert np.all(huge_threshold.left.edge[:5] != 0)
+
+
+def test_edge_at_0():
+    """Ensure that we don't repeat the mistakes of issue #2.
+    Valid edges can be found at index == 0."""
+    img = _get_test_img()
+    img[::, 0] = [0, 0, 0]  # black line at very left edge
+    img[5, 0] = [255, 255, 255]  # ...except one white dot
+    config = edge.config(bg_value=255)
+    sub = edge.Subject(img=img, config=config)
+    e = sub.left.edge
+    assert np.all(e[:5] == 0)
+    assert np.all(e[6:] == 0)
+    assert e[5] != 0
 
 
 def test_column_blocks():
