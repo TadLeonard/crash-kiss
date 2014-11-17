@@ -56,7 +56,7 @@ class Subject(object):
     @property
     def img(self):
         return self._img
-    
+
     @img.setter
     def img(self, img):
         self._img = img
@@ -66,7 +66,7 @@ class Subject(object):
     @property
     def background(self):
         return np.array([side.background for side in self])
-   
+
     @background.setter
     def background(self, precomputed_background):
         for side in self:
@@ -147,7 +147,7 @@ class Side(object):
                 self._rgb_view = _rgb_select[select](view)
             except KeyError:
                 from warnings import warn
-                warn("RGB select {0} results in a copy!".format(select)) 
+                warn("RGB select {0} results in a copy!".format(select))
                 self._rgb_view = view[:, :, select]
 
     def _get_rgb_select(self):
@@ -171,7 +171,7 @@ class Side(object):
                 bg[::] = user_defined_bg
                 self._background = bg
             else:
-                s_size = self._config["bg_sample_size"] 
+                s_size = self._config["bg_sample_size"]
                 self._background = get_background(self.rgb_view, s_size)
         return self._background
 
@@ -179,7 +179,7 @@ class Side(object):
     def background(self, precomputed_val):
         self._background = precomputed_val
 
-    def __iter__(self): 
+    def __iter__(self):
         return iter(self.edge)
 
 
@@ -202,7 +202,7 @@ _EDGE_PLACEHOLDER = 0xFFFF  # for valid edges at index 0
 def get_edge(img, background, config):
     """Finds the 'edge' of the subject of an image based on a background
     value or an array of background values. Returns an array of indices that
-    represent the first non-background pixel moving from left to right in 
+    represent the first non-background pixel moving from left to right in
     the image. Since it finds edges from left to right, it's up to the
     caller to pass in an appropriately inverted or rotated view of the image
     to account for this."""
@@ -235,7 +235,7 @@ def get_edge(img, background, config):
 def _column_blocks(img, chunksize):
     n_cols = img.shape[1]
     chunksize = min(chunksize, n_cols)
-    n_chunks = (3 * (n_cols // chunksize) // 4) + 1 
+    n_chunks = (3 * (n_cols // chunksize) // 4) + 1
     stop_indices = [chunksize * n for n in range(1, n_chunks)]
     if not stop_indices or stop_indices[-1] < n_cols:
         stop_indices.append(n_cols)
@@ -263,7 +263,7 @@ def _get_contiguous_slice(img, z_edge, offset):
             stop = img.shape[0]
         else:
             stop += 1
-    return img[start: stop], start, stop 
+    return img[start: stop], start, stop
 
 
 def _find_foreground(img, background, config):
@@ -287,7 +287,7 @@ def _find_foreground(img, background, config):
 
 def _simplify_background(background, config):
     """Here, we see if the background's RGB elements are similar.
-    This way we can do a simple 
+    This way we can do a simple
     array - int operation instead of the more expensive array - [R, G, B]
     or the even pricier array - <array of shape (NROWS, 1, 3)> operation."""
     while isinstance(background, np.ndarray):
