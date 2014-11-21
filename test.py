@@ -1,13 +1,13 @@
 import os
 import itertools
-import mahotas
+import imread
 import numpy as np
 import pytest
 from crash_kiss import edge
 
 
 def _get_test_img():
-    img = mahotas.imread(os.path.join(os.path.dirname(__file__), "face.jpg"))
+    img = imread.imread(os.path.join(os.path.dirname(__file__), "face.jpg"))
     # cut off bottom non-white edge
     # make sure it's not square to catch "wrong axis" bugs
     img = img[:-10:, :-7:]
