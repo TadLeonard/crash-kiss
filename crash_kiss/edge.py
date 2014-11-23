@@ -37,8 +37,8 @@ _orientors = dict(
 
 
 class Subject(object):
-    """Container of `Side` instances, which contain arrays that define the
-    edges of the foreground of an image"""
+    """Container of `Side` instances which, together, define
+    the edges of the subject in an image"""
 
     def __init__(self, img=None, config=config()):
         self._config = config
@@ -233,6 +233,7 @@ def get_edge(img, background, config):
 
 
 def _column_blocks(img, chunksize):
+    """Generates views of `img` that are no more than `chunksize` in width"""
     n_cols = img.shape[1]
     chunksize = min(chunksize, n_cols)
     n_chunks = (3 * (n_cols // chunksize) // 4) + 1
@@ -245,6 +246,8 @@ def _column_blocks(img, chunksize):
 
 
 def _row_slices(img, edge):
+    """Generates tuples of `(rows, start_idx, stop_idx)`
+    where `rows` are contiguous rows of the image"""
     z_edge = edge == 0
     stop = 0
     n_rows = img.shape[0]
@@ -254,6 +257,7 @@ def _row_slices(img, edge):
 
 
 def _get_contiguous_slice(img, z_edge, offset):
+    """Returns one or more contiguous rows of a piece of an image"""
     start = np.argmax(z_edge[offset:]) + offset
     if start == offset and not z_edge[start]:
         raise StopIteration
