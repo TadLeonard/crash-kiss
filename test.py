@@ -145,7 +145,7 @@ def test_rbg_select_shape():
     #TODO: At one point, 1D backgrounds seemed to work for 
     # 2D views of the image. Later on, they didn't! Why!? 
     img = _get_test_img()
-    no_red = edge.config(rgb_select=[1,2])
+    no_red = edge.config(rgb_select=[1,2], bg_value="auto")
     only_red = edge.config(rgb_select=[0])
     cool = edge.Subject(img=img, config=no_red)
     hot = edge.Subject(img=img, config=only_red)
@@ -184,6 +184,7 @@ def test_rgb_view_bg_value():
     """Make sure each `Side` background is made up of only colors
     specified in the 'rgb_select' config value"""
     for sub, conf in _get_test_rgb_views():
+        conf["bg_value"] = "auto"
         bgs = [side.background for side in sub]
         select = conf["rgb_select"]
         for bg in bgs:
