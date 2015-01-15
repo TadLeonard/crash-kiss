@@ -10,14 +10,18 @@ from crash_kiss import util
 
 
 def config(**kw_overrides):
-    invalid = set(kw_overrides) - set(_config_defaults)
+    invalid = list(set(kw_overrides) - set(_config_defaults))
     if invalid:
         raise Exception("Invalid config keys: {0}".format(invalid))
     conf = dict(_config_defaults)
     conf.update(kw_overrides)
     return conf
 
+
 side_names = "left", "right", "up", "down"
+WHITE = 255  # the default white background value
+AUTO = "auto"  # key used to auto-gather the background
+
 
 _config_defaults = dict(
     bg_sample_size=5,
@@ -25,9 +29,10 @@ _config_defaults = dict(
     bg_change_tolerance=7,
     relative_sides=("left", "right"),
     chunksize=300,
-    bg_value=None,
+    bg_value=WHITE,
     rgb_select=None,
 )
+
 
 _orientors = dict(
     left=util.orient_left_to_right,
@@ -173,7 +178,7 @@ class Side(object):
     def background(self):
         if self._background is None:
             user_defined_bg = self._config["bg_value"]
-            if user_defined_bg is not None:
+            if user_defined_bg != AUTO:
                 bg = np.empty((self.rgb_view.shape[0], 3), dtype=np.uint8)
                 bg[::] = user_defined_bg
                 self._background = bg
@@ -205,7 +210,7 @@ def get_background(img, sample_size):
 _EDGE_PLACEHOLDER = 0xFFFF  # for valid edges at index 0
 
 
-@profile
+#@profile
 def get_edge(img, background, config):
     """Finds the 'edge' of the subject of an image based on a background
     value or an array of background values. Returns an array of indices that
@@ -308,11 +313,8 @@ class Foreground(object):
         self._img = img
         self._mask = np.zeros(shape=img.shape, dtype=np.bool)
     
-    @classmethod
-    def view(` 
 
-
-@profile
+#@profile
 def _find_foreground(img, background, config):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
@@ -335,8 +337,8 @@ def _find_foreground(img, background, config):
         return diff  # it's a 2D array of just one of RGB or A
 
 
-@profile
 def _fg_views(img, background, config):
+    return
     im0 = img[:, :-1:]
     im1 = img[:, 1:]
     diff = np.abs(im0 - im1)
