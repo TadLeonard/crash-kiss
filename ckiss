@@ -35,7 +35,9 @@ procargs.add_argument("-t", "--threshold",
                       default=_conf["threshold"], type=int)
 procargs.add_argument("-b", "--bg-value", type=lambda x: map(int, x.split(",")),
                       help="A number to represent the color of the background "
-                           "should the user want to manually set it",
+                           "should the user want to manually set it. Use "
+                           "'auto' to automatically gather per-row "
+                           "background values.",
                       default=_conf["bg_value"])
 procargs.add_argument("-B", "--bg-side", choices=edge.side_names, default=None,
                       help="Sample the background from this side only. "
