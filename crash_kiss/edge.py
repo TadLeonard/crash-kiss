@@ -123,7 +123,7 @@ class Side(object):
         if self._view is None:
             self._view = self._orient(self.img)
         return self._view
-#
+
     @property
     def rgb_view(self):
         """Provide a view of the image that is potentially restricted to
@@ -137,7 +137,6 @@ class Side(object):
         view = self.view
         # We CANNOT use advanced indexing here!
         # Copies of large images are just too expensive.
-        # This means we get this horrible switch statement.
         if select == range(view.shape[2]):
             self._rgb_view = view
         elif len(select) == 1:
@@ -198,7 +197,7 @@ def get_background(img, sample_size):
 _EDGE_PLACEHOLDER = 0xFFFF  # for valid edges at index 0
 
 
-#@profile
+@profile
 def get_edge(img, background, config):
     """Finds the 'edge' of the subject of an image based on a background
     value or an array of background values. Returns an array of indices that
@@ -270,11 +269,24 @@ def _get_contiguous_slice(img, z_edge, offset):
     return img[start: stop], start, stop
 
 
+class Foreground(object):
+    """Memoized calculation of foreground vs. background"""
+
+    def __init__(self, img):
+        self._img = img
+        self._mask = np.zeros(shape=img.shape, dtype=np.bool)
+    
+    @classmethod
+    def view(` 
+
+
+@profile
 def _find_foreground(img, background, config):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
     to a simple int or float, we'll try to avoid calling `np.abs`
     by checking to see if the background value is near 0 or 255."""
+    _fg_views(img, background, config)
     threshold = config["threshold"]
     is_num = isinstance(background, (float, int))
     if is_num and background < 50:
@@ -289,9 +301,18 @@ def _find_foreground(img, background, config):
         return diff  # it's a 2D array of just one of RGB or A
 
 
+@profile
+def _fg_views(img, background, config):
+    im0 = img[:, :-1:]
+    im1 = img[:, 1:]
+    diff = np.abs(im0 - im1)
+    maxes = np.max(img, axis=1)
+    mins = np.min(img, axis=1)
+
+
 def _simplify_background(background, config):
-    """Here, we see if the background's RGB elements are similar.
-    This way we can do a simple
+    """See if the background's RGB elements are similar.
+    If each element in the background is similar enough, we can do a simple
     array - int operation instead of the more expensive array - [R, G, B]
     or the even pricier array - <array of shape (NROWS, 1, 3)> operation."""
     while isinstance(background, np.ndarray):

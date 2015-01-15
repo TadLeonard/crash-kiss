@@ -1,5 +1,3 @@
-"""Miscellaneous tools for debugging edge finding, face smashing, etc"""
-
 from six.moves import zip
 
 
