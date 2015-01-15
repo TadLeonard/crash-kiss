@@ -17,7 +17,7 @@ def wall_smash_many(combined_img, subjects):
      
 
 
-def wall_smash(subject, out=None, target_edge=None):
+def smash(subject, out=None, target_edge=None):
     """Mutates a numpy array of an image so that the subject is smashed up
     against one of the image's borders. The left (relative to the subject)
     border is used, so the caller must provide a properly flipped or rotated
@@ -41,20 +41,6 @@ def wall_smash(subject, out=None, target_edge=None):
         row[target_idx: bg_idx] = row[l_idx: subject_width]
         row[bg_idx: subject_width] = bg
  
-
-def _shift_img_left_to_right(left_edge, right_edge, img):
-    target_idx = row.shape[0]  # shift to end of img initially
-    rowlens = left 
-    rowlen = edge.right_idx - edge.left_idx
-    sub_data_l = target_idx - rowlen
-    sub_data_r = target_idx
-    row[sub_data_l: sub_data_r] = row[edge.left_idx: edge.right_idx]
-    target_idx = sub_data_l
-
-    # We've shifted the subject(s) over, now we need to fill
-    # the rest of the row with negative space
-    row[:sub_data_l] = edge.neg_space_l
-
 
 # green, red, yellow, cyan
 _EDGE_REVEAL = [0, 255, 0], [255, 0, 0], [255, 255, 0], [0, 255, 255]

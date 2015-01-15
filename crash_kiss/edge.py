@@ -5,6 +5,7 @@ from __future__ import division
 from collections import namedtuple
 from itertools import tee
 import numpy as np
+from six.moves import range
 from crash_kiss import util
 
 
@@ -102,7 +103,7 @@ class Side(object):
     def __init__(self, orientation, img=None, config=config()):
         self.name = orientation
         self._edge = self._view = self._background = self._img = None
-        self._rgb_view = None
+        self._all_edges = self._rgb_view = None
         self._relative_side = orientation
         self._orient = _orientors[orientation]
         self.img = img
@@ -162,6 +163,13 @@ class Side(object):
         return self._edge
 
     @property
+    def all_edges(self):
+        if self._all_edges is None:
+            bg = self.background
+            self._all_edges = get_all_edges(self.rgb_view, bg, self._config)
+        return self._all_edges
+
+    @property
     def background(self):
         if self._background is None:
             user_defined_bg = self._config["bg_value"]
@@ -216,6 +224,7 @@ def get_edge(img, background, config):
     edge = np.zeros(img.shape[0], dtype=np.uint16)
     chunks = _column_blocks(img, config["chunksize"])
     for img_chunk, prev_idx in chunks:
+      #  img_chunk *= 0.9
         for img_slice, start, stop in _row_slices(img_chunk, edge):
             if bg_is_array:
                 bg = background[start: stop]
@@ -229,6 +238,29 @@ def get_edge(img, background, config):
     mask = edge == 0
     edge[edge == _EDGE_PLACEHOLDER] = 0
     return np.ma.masked_array(edge, mask=mask, copy=False)
+
+
+def get_all_edges(img, background, config): 
+    bg = _simplify_background(background, config)
+    fg = _find_foreground(img, bg, config)
+    width = foreground.shape[1]
+    max_depth = 99
+    return [list(_row_edges(row, max_depth)) for row in fg]
+
+
+#@profile
+def _row_edges(row, max_depth=999):
+    stop = 0
+    for _ in range(max_depth):
+        start = np.argmax(row[stop:]) + stop
+        if start == stop:
+            break
+        stop = np.argmin(row[start:]) + start
+        if stop == start:
+            yield start, row.shape[0]
+            break
+        else:
+            yield start, stop
 
 
 def _column_blocks(img, chunksize):
@@ -289,7 +321,9 @@ def _find_foreground(img, background, config):
     _fg_views(img, background, config)
     threshold = config["threshold"]
     is_num = isinstance(background, (float, int))
-    if is_num and background < 50:
+    if is_num and threshold <= 1:
+        diff = img != background 
+    elif is_num and background < 50:
         diff = img - background > threshold
     elif is_num and background > 200:
         diff = background - img > threshold
