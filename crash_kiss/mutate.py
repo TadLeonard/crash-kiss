@@ -4,20 +4,13 @@ from six.moves import zip
 import numpy as np
 
 
-def center_smash_image(edges, img):
+def center_smash(edges, img):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
 
 
-def wall_smash_many(combined_img, subjects):
-    """Smash many subjects against a wall. The first (leftmost)
-    subject is smashed flat against the left border. Each subject after
-    that is smashed against the right edge of the previous subject."""
-     
-
-
-def smash(subject, out=None, target_edge=None):
+def side_smash(subject, out=None, target_edge=None):
     """Mutates a numpy array of an image so that the subject is smashed up
     against one of the image's borders. The left (relative to the subject)
     border is used, so the caller must provide a properly flipped or rotated

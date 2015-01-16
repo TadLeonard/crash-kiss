@@ -307,15 +307,7 @@ def _get_contiguous_slice(img, z_edge, offset):
     return img[start: stop], start, stop
 
 
-class Foreground(object):
-    """Memoized calculation of foreground vs. background"""
-
-    def __init__(self, shape):
-        self._shape = shape
-        self._mask = np.zeros(shape=img.shape, dtype=np.bool)
-    
-
-@profile
+#@profile
 def _find_foreground(img, background, config):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
