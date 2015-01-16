@@ -20,6 +20,7 @@ def config(**kw_overrides):
 
 side_names = "left", "right", "up", "down"
 WHITE = 255  # the default white background value
+BLACK = 0
 AUTO = "auto"  # key used to auto-gather the background
 
 
@@ -309,41 +310,30 @@ def _get_contiguous_slice(img, z_edge, offset):
 class Foreground(object):
     """Memoized calculation of foreground vs. background"""
 
-    def __init__(self, img):
-        self._img = img
+    def __init__(self, shape):
+        self._shape = shape
         self._mask = np.zeros(shape=img.shape, dtype=np.bool)
     
 
-#@profile
+@profile
 def _find_foreground(img, background, config):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
     to a simple int or float, we'll try to avoid calling `np.abs`
     by checking to see if the background value is near 0 or 255."""
-    _fg_views(img, background, config)
     threshold = config["threshold"]
     is_num = isinstance(background, (float, int))
     if is_num and threshold <= 1:
         diff = img != background 
-    elif is_num and background < 50:
+    elif background - BLACK <= 5:
         diff = img - background > threshold
-    elif is_num and background > 200:
+    elif WHITE - background <= 5:
         diff = background - img > threshold
     else:
         diff = np.abs(img - background) > threshold
     if len(diff.shape) == 3:
-        return np.all(diff, axis=2)  # we're using a 3D array
-    else:
-        return diff  # it's a 2D array of just one of RGB or A
-
-
-def _fg_views(img, background, config):
-    return
-    im0 = img[:, :-1:]
-    im1 = img[:, 1:]
-    diff = np.abs(im0 - im1)
-    maxes = np.max(img, axis=1)
-    mins = np.min(img, axis=1)
+        diff = np.all(diff, axis=2)  # we're using a 3D array
+    return diff
 
 
 def _simplify_background(background, config):
