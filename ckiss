@@ -7,7 +7,7 @@ import argparse
 import os
 import tempfile
 import imread
-from crash_kiss import edge, mutate, util
+from crash_kiss import outer_edge, mutate, util
 
 
 parser = argparse.ArgumentParser(
