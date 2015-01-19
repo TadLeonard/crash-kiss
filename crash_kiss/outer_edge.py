@@ -5,7 +5,8 @@ from __future__ import division
 import numpy as np
 from six.moves import range
 from crash_kiss import util
-from crash_kiss.config import config, WHITE, BLACK, AUTO
+from crash_kiss.config import config, AUTO
+from crash_kiss import edge
 
 
 side_names = "left", "right", "up", "down"
@@ -143,13 +144,6 @@ class Side(object):
         return self._edge
 
     @property
-    def all_edges(self):
-        if self._all_edges is None:
-            bg = self.background
-            self._all_edges = get_all_edges(self.rgb_view, bg, self._config)
-        return self._all_edges
-
-    @property
     def background(self):
         if self._background is None:
             user_defined_bg = self._config["bg_value"]
@@ -185,7 +179,6 @@ def get_background(img, sample_size):
 _EDGE_PLACEHOLDER = 0xFFFF  # for valid edges at index 0
 
 
-#@profile
 def get_edge(img, background, config):
     """Finds the 'edge' of the subject of an image based on a background
     value or an array of background values. Returns an array of indices that
@@ -199,48 +192,24 @@ def get_edge(img, background, config):
     # 3) calling np.all across the whole ndarray
     # 4) repeatedly creating slice views of the whole ndarray
     # argmax is relatively cheap
-    bg = _simplify_background(background, config)
+    bg = edge.simplify_background(background, config)
     bg_is_array = isinstance(bg, np.ndarray)
-    edge = np.zeros(img.shape[0], dtype=np.uint16)
+    found_edge = np.zeros(img.shape[0], dtype=np.uint16)
     chunks = _column_blocks(img, config["chunksize"])
     for img_chunk, prev_idx in chunks:
-      #  img_chunk *= 0.9
-        for img_slice, start, stop in _row_slices(img_chunk, edge):
+        for img_slice, start, stop in _row_slices(img_chunk, found_edge):
             if bg_is_array:
                 bg = background[start: stop]
-            fg = _find_foreground(img_slice, bg, config)
+            fg = edge.find_foreground(img_slice, bg, config)
             sub_edge = np.argmax(fg, axis=1)
             nz_sub_edge = sub_edge != 0
             sub_edge[nz_sub_edge] += prev_idx
-            edge[start: stop] = sub_edge
+            found_edge[start: stop] = sub_edge
             if not prev_idx:
-                edge[fg[::, 0]]= _EDGE_PLACEHOLDER
-    mask = edge == 0
-    edge[edge == _EDGE_PLACEHOLDER] = 0
-    return np.ma.masked_array(edge, mask=mask, copy=False)
-
-
-def get_all_edges(img, background, config): 
-    bg = _simplify_background(background, config)
-    fg = _find_foreground(img, bg, config)
-    width = foreground.shape[1]
-    max_depth = 99
-    return [list(_row_edges(row, max_depth)) for row in fg]
-
-
-#@profile
-def _row_edges(row, max_depth=999):
-    stop = 0
-    for _ in range(max_depth):
-        start = np.argmax(row[stop:]) + stop
-        if start == stop:
-            break
-        stop = np.argmin(row[start:]) + start
-        if stop == start:
-            yield start, row.shape[0]
-            break
-        else:
-            yield start, stop
+                found_edge[fg[::, 0]]= _EDGE_PLACEHOLDER
+    mask = found_edge == 0
+    found_edge[found_edge == _EDGE_PLACEHOLDER] = 0
+    return np.ma.masked_array(found_edge, mask=mask, copy=False)
 
 
 def _column_blocks(img, chunksize):
@@ -280,42 +249,4 @@ def _get_contiguous_slice(img, z_edge, offset):
             stop += 1
     return img[start: stop], start, stop
 
-
-#@profile
-def _find_foreground(img, background, config):
-    """Find the foreground of the image by subracting each RGB element
-    in the image by the background. If the background has been reduced
-    to a simple int or float, we'll try to avoid calling `np.abs`
-    by checking to see if the background value is near 0 or 255."""
-    threshold = config["threshold"]
-    is_num = isinstance(background, (float, int))
-    if is_num and threshold <= 1:
-        diff = img != background 
-    elif background - BLACK <= 5:
-        diff = img - background > threshold
-    elif WHITE - background <= 5:
-        diff = background - img > threshold
-    else:
-        diff = np.abs(img - background) > threshold
-    if len(diff.shape) == 3:
-        diff = np.all(diff, axis=2)  # we're using a 3D array
-    return diff
-
-
-def _simplify_background(background, config):
-    """See if the background's RGB elements are similar.
-    If each element in the background is similar enough, we can do a simple
-    array - int operation instead of the more expensive array - [R, G, B]
-    or the even pricier array - <array of shape (NROWS, 1, 3)> operation."""
-    while isinstance(background, np.ndarray):
-        bg_change_tolerance = config["bg_change_tolerance"]
-        bmax, bmin = background.max(axis=0), background.min(axis=0)
-        diff = (bmax - bmin) < bg_change_tolerance
-        if len(background.shape) >= 2:
-            diff = np.all(diff)
-        if diff:
-            background = np.median(background, axis=0)
-        else:
-            break  # we've simplified the background as much as we can
-    return background
 

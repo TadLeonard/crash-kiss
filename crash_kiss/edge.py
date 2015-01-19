@@ -1,7 +1,9 @@
-"""Finding all edges in an image"""
+"""Functions for finding the foreground in an image with a clean
+background (i.e. mostly white or black)"""
 
 from __future__ import division
 import numpy as np
+from crash_kiss.config import BLACK, WHITE
 
 
 def bisect_img(img):
@@ -17,7 +19,7 @@ def find_foreground(img, background, config):
     by checking to see if the background value is near 0 or 255."""
     threshold = config["threshold"]
     is_num = isinstance(background, (float, int))
-    if is_num and threshold <= 1:
+    if is_num and threshold < 1:
         diff = img != background 
     elif background - BLACK <= 5:
         diff = img - background > threshold
