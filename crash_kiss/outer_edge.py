@@ -1,9 +1,7 @@
-"""Functions for finding the edges of the foreground in an image 
+"""Functions for finding the outer edges of the foreground in an image 
 with a clean background (i.e. mostly white or black)"""
 
 from __future__ import division
-from collections import namedtuple
-from itertools import tee
 import numpy as np
 from six.moves import range
 from crash_kiss import util
@@ -120,7 +118,7 @@ class Side(object):
         view = self.view
         # We CANNOT use advanced indexing here!
         # Copies of large images are just too expensive.
-        if select == range(view.shape[2]):
+        if select == tuple(range(view.shape[2])):
             self._rgb_view = view
         elif len(select) == 1:
             self._rgb_view = view[:, :, select[0]]
