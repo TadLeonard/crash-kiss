@@ -23,7 +23,7 @@ parser.add_argument("-o", "--outfile", default=None)
 parser.add_argument("-O", "--show-with", help="view result with this command",
                     default="display {0} > /dev/null 2>&1")
 procargs = parser.add_argument_group("processing")
-_conf = edge.config()  # defaults
+_conf = config.config()  # defaults
 procargs.add_argument("-c", "--bg-change-tolerance", type=int,
                       help="used to reduce the foreground vs. background"
                            "comparison in edge detection",
