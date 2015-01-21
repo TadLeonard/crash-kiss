@@ -18,7 +18,7 @@ def find_foreground(img, background, config):
     to a simple int or float, we'll try to avoid calling `np.abs`
     by checking to see if the background value is near 0 or 255."""
     threshold = config["threshold"]
-    is_num = isinstance(background, (float, int))
+    is_num = isinstance(background, int)
     if is_num and threshold < 1:
         diff = img != background 
     elif background - BLACK <= 5:
