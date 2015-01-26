@@ -12,6 +12,7 @@ def bisect_img(img):
     return img[:, half:], img[:, :half]
     
 
+@profile
 def find_foreground(img, background, config):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced

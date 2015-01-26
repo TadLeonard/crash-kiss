@@ -3,6 +3,7 @@
 from six.moves import zip
 import random
 import numpy as np
+from crash_kiss.config import WHITE, BLACK
 
 
 def center_smash(edges, img):
@@ -11,7 +12,7 @@ def center_smash(edges, img):
     is (probably white or transparent pixels)."""
 
 
-def side_smash(subject, out=None, target_edge=None):
+def outer_side_smash(subject, out=None, target_edge=None):
     """Mutates a numpy array of an image so that the subject is smashed up
     against one of the image's borders. The left (relative to the subject)
     border is used, so the caller must provide a properly flipped or rotated
@@ -59,14 +60,15 @@ def reveal_outer_edges(subject, width):
         view[::, 0] = left_col  # restore edge of image
 
 
+@profile
 def reveal_foreground(img, foreground):
-    color = random.choice(_EDGE_REVEAL)
+    color = BLACK
     img[foreground] = color
-    print(img)
 
 
+@profile
 def reveal_background(img, foreground):
-    color = random.choice(_EDGE_REVEAL)
+    color = WHITE
     img[foreground == 0] = color
 
 
@@ -76,3 +78,4 @@ def combine_images(imgs, horizontal=True):
     for img in imgs[1:]:
         combined = np.append(combined, img, axis=axis)
     return combined
+
