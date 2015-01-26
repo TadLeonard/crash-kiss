@@ -22,12 +22,18 @@ parser.add_argument("-b", "--bg-value", type=lambda x: map(int, x.split(",")),
 parser.add_argument("-o", "--outfile", default=None)
 parser.add_argument("-e", "--reveal-foreground", action="store_true")
 parser.add_argument("-E", "--reveal-background", action="store_true")
+parser.add_argument("-t", "--threshold",
+                    help="min difference between background and foreground "
+                         "to determine an edge",
+                    default=_conf["threshold"], type=int)
 
 
 def main():
     args = parser.parse_args()
     img = imread.imread(args.target)
-    conf = config.config(bg_value=args.bg_value)
+    conf = config.config(
+        bg_value=args.bg_value,
+        threshold=args.threshold)
     bg = conf["bg_value"]  # no dynamic background gathering
     fg = edge.find_foreground(img, bg, conf)
      
