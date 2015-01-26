@@ -3,7 +3,7 @@ background (i.e. mostly white or black)"""
 
 from __future__ import division
 import numpy as np
-from crash_kiss.config import BLACK, WHITE
+from crash_kiss.config import BLACK, WHITE, config
 
 
 def bisect_img(img):
@@ -50,4 +50,39 @@ def simplify_background(background, config):
             break  # we've simplified the background as much as we can
     return background
 
-     
+
+class Subject(object):
+    """Holds foreground/background data of an image"""
+
+    def __init__(self, img, config=config()):
+        self.img = img
+        self._foreground_select = None
+        self._background_select = None
+        self._foreground = None
+        self._background = None
+        self._config = config
+
+    def select_foreground(self):
+        if self._foreground_select is None:
+            self._foreground_select = self.img[self.foreground]
+        return self._foreground_select
+
+    def select_background(self):
+        if self._background_select is None:
+            self._background_select = self.img[self.background]
+        return self._background_select
+
+    @property
+    def foreground(self):
+        if self._foreground is None:
+            bg = self._config["bg_value"]
+            fg = find_foreground(self.img, bg, self._config)
+            self._foreground = fg
+        return self._foreground 
+
+    @property
+    def background(self):
+        if self._background is None:
+            self._background = ~ self.foreground
+        return self._background
+
