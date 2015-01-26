@@ -2,12 +2,13 @@
 """
 Command line entry point to `crash kiss` face smashing functions.
 """
+
 from __future__ import print_function
 import argparse
 import os
 import tempfile
 import imread
-from crash_kiss import outer_edge, mutate, util
+from crash_kiss import outer_edge, mutate, util, config
 
 
 parser = argparse.ArgumentParser(
@@ -38,7 +39,7 @@ procargs.add_argument("-b", "--bg-value", type=lambda x: map(int, x.split(",")),
                            "'auto' to automatically gather per-row "
                            "background values.",
                       default=_conf["bg_value"])
-procargs.add_argument("-B", "--bg-side", choices=edge.side_names, default=None,
+procargs.add_argument("-B", "--bg-side", choices=outer_edge.side_names,
                       help="Sample the background from this side only. "
                            "Useful when the subject bleeds into one side.")
 procargs.add_argument("--bg-sample-size", type=int,
@@ -80,14 +81,14 @@ def run():
     working_img = _orientors[args.direction](img)
 
     # This is where we should process each image for edge detection...
-    config = edge.config(threshold=args.threshold,
+    conf = config.config(threshold=args.threshold,
                          bg_change_tolerance=args.bg_change_tolerance,
                          bg_sample_size=args.bg_sample_size,
                          relative_sides=args.relative_sides,
                          chunksize=args.chunksize,
                          bg_value=args.bg_value,
                          rgb_select=args.rgb_select)
-    subject = edge.Subject(img=working_img, config=config)
+    subject = outer_edge.Subject(img=working_img, config=conf)
 
     if args.bg_side:
         bg_sample = getattr(subject, args.bg_side).background
@@ -106,7 +107,7 @@ def run():
 
     # Various things to do with the result of our image mutations
     if args.reveal_edges:
-        mutate.reveal_edges(subject, args.reveal_width)
+        mutate.reveal_outer_edges(subject, args.reveal_width)
     if args.outfile:
         imread.imwrite(args.outfile, img)
     else:
