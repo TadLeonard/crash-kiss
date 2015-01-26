@@ -63,7 +63,6 @@ class Subject(object):
             yield side
 
 
-
 _rgb_select = {
     (0, 1): lambda view: view[:, :, :2],
     (1, 2): lambda view: view[:, :, 1:3],
@@ -248,5 +247,4 @@ def _get_contiguous_slice(img, z_edge, offset):
         else:
             stop += 1
     return img[start: stop], start, stop
-
 

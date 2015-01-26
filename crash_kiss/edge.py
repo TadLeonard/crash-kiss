@@ -48,4 +48,5 @@ def simplify_background(background, config):
         else:
             break  # we've simplified the background as much as we can
     return background
- 
+
+     

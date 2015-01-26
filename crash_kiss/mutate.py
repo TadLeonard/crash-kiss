@@ -1,6 +1,7 @@
 """Functions for mutating a numpy ndarray of an image"""
 
 from six.moves import zip
+import random
 import numpy as np
 
 
@@ -39,7 +40,7 @@ def side_smash(subject, out=None, target_edge=None):
 _EDGE_REVEAL = [0, 255, 0], [255, 0, 0], [255, 255, 0], [0, 255, 255]
 
 
-def reveal_edges(subject, width):
+def reveal_outer_edges(subject, width):
     """Highlights the left, right, upper, and lower edges of an image
     with green, red, yellow, and cyan."""
     if not width:
@@ -58,10 +59,20 @@ def reveal_edges(subject, width):
         view[::, 0] = left_col  # restore edge of image
 
 
+def reveal_foreground(img, foreground):
+    color = random.choice(_EDGE_REVEAL)
+    img[foreground] = color
+    print(img)
+
+
+def reveal_background(img, foreground):
+    color = random.choice(_EDGE_REVEAL)
+    img[foreground == 0] = color
+
+
 def combine_images(imgs, horizontal=True):
     axis = 1 if horizontal else 0
     combined = imgs[0]
     for img in imgs[1:]:
         combined = np.append(combined, img, axis=axis)
     return combined
-
