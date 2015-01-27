@@ -29,7 +29,7 @@ def find_foreground(img, background, config):
     else:
         diff = np.abs(img - background) > threshold
     if len(diff.shape) == 3:
-        diff = np.all(diff, axis=2)  # we're using a 3D array
+        diff = np.any(diff, axis=2)  # we're using a 3D array
     return diff
 
 
