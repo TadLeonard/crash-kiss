@@ -60,16 +60,17 @@ def reveal_outer_edges(subject, width):
         view[::, 0] = left_col  # restore edge of image
 
 
-@profile
-def reveal_foreground(img, foreground):
-    color = BLACK
-    img[foreground] = color
+_GREY = [200, 200, 200]
 
 
 @profile
-def reveal_background(img, foreground):
-    color = WHITE
-    img[foreground == 0] = color
+def reveal_foreground(subject):
+    subject.img[subject.foreground] = BLACK
+
+
+@profile
+def reveal_background(subject):
+    subject.img[subject.background] = _GREY
 
 
 def combine_images(imgs, horizontal=True):
