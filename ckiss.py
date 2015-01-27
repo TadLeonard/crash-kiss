@@ -34,19 +34,21 @@ def main():
     conf = config.config(
         bg_value=args.bg_value,
         threshold=args.threshold)
-    bg = conf["bg_value"]  # no dynamic background gathering
-    fg = edge.find_foreground(img, bg, conf)
+    subject = edge.Subject(img, conf)
+    bg = subject.background
+    fg = subject.foreground
      
     # Various things to do with the result of our image mutations
     if args.reveal_foreground:
-        mutate.reveal_foreground(img, fg)
+        mutate.reveal_foreground(subject)
     if args.reveal_background:
-        mutate.reveal_background(img, fg)
+        mutate.reveal_background(subject)
+    opts = {"quality": 100}  # no JPEG compression
     if args.outfile:
-        imread.imwrite(args.outfile, img)
+        imread.imwrite(args.outfile, img, opts=opts)
     else:
         temp = tempfile.mktemp(prefix="ckiss-", suffix=".jpg")
-        imread.imwrite(temp, img)
+        imread.imwrite(temp, img, opts=opts)
 
 
 if __name__ == "__main__":
