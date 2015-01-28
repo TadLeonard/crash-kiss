@@ -206,21 +206,21 @@ def test_rgb_view_edge():
     """Ensure that edge finding behavior changes based on
     a restricted RGB view"""
     img = _get_test_img()
-    only_red = config(rgb_select=[0])
-    no_red = config(rgb_select=[1, 2])
-    only_green = config(rgb_select=[1])
-    only_blue = config(rgb_select=[2])
+    only_red = config(rgb_select=[0], bg_sample_size=1)
+    no_red = config(rgb_select=[1, 2], bg_sample_size=1)
+    only_green = config(rgb_select=[1], bg_sample_size=1)
+    only_blue = config(rgb_select=[2], bg_sample_size=1)
     red = outer_edge.Subject(img=img, config=only_red)
     cold = outer_edge.Subject(img=img, config=no_red)
     green = outer_edge.Subject(img=img, config=only_green)
     blue = outer_edge.Subject(img=img, config=only_blue)
-    img[:] = [255, 255, 255]
+    img[:] = 255
     img[:, 5] = [0, 255, 255]
     img[:, 10] = [255, 0, 255]
     assert np.all(red.left.edge == 5)
-    assert np.all(cold.left.edge.mask)
+    assert not np.all(cold.left.edge.mask)
     assert np.all(green.left.edge == 10)
-    assert np.all(blue.left.edge.mask)
+    assert np.all(blue.left.edge.mask)  # no blue in the image
         
 
 def test_rgb_view_nocopy():
