@@ -26,6 +26,7 @@ parser.add_argument("-t", "--threshold",
                     help="min difference between background and foreground "
                          "to determine an edge",
                     default=_conf["threshold"], type=int)
+parser.add_argument("-s", "--smash", action="store_true")
 
 
 def main():
@@ -35,14 +36,14 @@ def main():
         bg_value=args.bg_value,
         threshold=args.threshold)
     subject = edge.Subject(img, conf)
-    bg = subject.background
-    fg = subject.foreground
      
     # Various things to do with the result of our image mutations
     if args.reveal_foreground:
         mutate.reveal_foreground(subject)
     if args.reveal_background:
         mutate.reveal_background(subject)
+    if args.smash:
+        mutate.center_smash(img, subject)
     opts = {"quality": 100}  # no JPEG compression
     if args.outfile:
         imread.imwrite(args.outfile, img, opts=opts)
@@ -53,3 +54,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

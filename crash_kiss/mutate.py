@@ -1,15 +1,57 @@
 """Functions for mutating a numpy ndarray of an image"""
 
+from __future__ import division
 from six.moves import zip
 import random
 import numpy as np
 from crash_kiss.config import WHITE, BLACK
+from crash_kiss import util
 
 
-def center_smash(edges, img):
+def center_smash(img, subject):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
+    fg = subject.foreground
+    fg_l, fg_r = bisect_img(fg)
+    fg_l = util.invert_horizontal(fg_l)
+    mid_idx = fg_l.shape[1]  # start idx for LHS of `right`
+    l_start = np.argmax(fg_l, axis=1)
+    r_start = np.argmax(fg_r, axis=1)
+    offs = r_start - l_start
+    for img_row, offs, fg_row in zip(img, offs, fg):
+        sub_row = img_row[fg_row]
+        sub_len = sub_row.shape[0]
+        halflen = sub_len // 2  # always truncate; we can't do any better
+        start_idx = mid_idx - halflen
+        stop_idx = start_idx + sub_len
+        img_row[start_idx: stop_idx] = sub_row
+        img_row[:start_idx] = WHITE
+        img_row[stop_idx:] = WHITE
+
+
+def _iter_offsets(left_start, right_start):
+    """Takes two rows of the foreground mask and determines
+    the left and right offset required to join the two subjects"""
+    for fg_l, fg_r in zip(left, right):
+        if fg_l[0] and fg_r[0]:
+            yield 0  # the subject is ON the middle line
+        l_offs = np.argmax(fg_l)
+        r_offs = np.argmax(fg_r)
+        if not l_offs and not fg_l[0]:
+            yield fg_r.shape[0]
+            l_offs = fg_l.shape[0]
+        yield r_offs - l_offs 
+        if l_offs == 0 and fg_l[0]:
+            pass
+         
+
+
+def _iter_slice_indices(fg_row, offset):
+    while True:
+        pass
+        
+    
 
 
 def outer_side_smash(subject, out=None, target_edge=None):
@@ -60,17 +102,12 @@ def reveal_outer_edges(subject, width):
         view[::, 0] = left_col  # restore edge of image
 
 
-_GREY = [200, 200, 200]
-
-
-@profile
 def reveal_foreground(subject):
     subject.img[subject.foreground] = BLACK
 
 
-@profile
 def reveal_background(subject):
-    subject.img[subject.background] = _GREY
+    subject.img[subject.background] = WHITE
 
 
 def combine_images(imgs, horizontal=True):
@@ -80,3 +117,9 @@ def combine_images(imgs, horizontal=True):
         combined = np.append(combined, img, axis=axis)
     return combined
 
+
+def bisect_img(img):
+    width = img.shape[1]
+    half = width // 2
+    return img[:, half:], img[:, :half]
+ 

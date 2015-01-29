@@ -6,13 +6,6 @@ import numpy as np
 from crash_kiss.config import BLACK, WHITE, config
 
 
-def bisect_img(img):
-    width = img.shape[1]
-    half = width // 2
-    return img[:, half:], img[:, :half]
-    
-
-@profile
 def find_foreground(img, background, config):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
@@ -20,9 +13,7 @@ def find_foreground(img, background, config):
     by checking to see if the background value is near 0 or 255."""
     threshold = config["threshold"]
     is_num = isinstance(background, int)
-    if is_num and threshold < 1:
-        diff = img != background 
-    elif background - BLACK <= 5:
+    if background - BLACK <= 5:
         diff = img - background > threshold
     elif WHITE - background <= 5:
         diff = background - img > threshold
