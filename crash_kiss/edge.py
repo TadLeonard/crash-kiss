@@ -6,12 +6,41 @@ import numpy as np
 from crash_kiss.config import BLACK, WHITE, config
 
 
+@profile
 def find_foreground(img, background, config):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
     to a simple int or float, we'll try to avoid calling `np.abs`
     by checking to see if the background value is near 0 or 255."""
     threshold = config["threshold"]
+    mask = _compare_pixels(img, background, threshold)
+    a = mask.ravel()
+    a[a==0] = 1
+    return mask
+    
+    """
+    mask = background - img[:, :, 0] > threshold
+
+    print np.count_nonzero(mask)
+    mask[mask==0] = background - img[mask==0][:, :, 1] > threshold
+    print np.count_nonzero(mask)
+    mask[mask==0] = background - img[:, :, 2][mask==0] > threshold
+    print np.count_nonzero(mask)
+    return mask
+    
+    for color in range(img.shape[-1]):
+        diff = background - img[:, :, color][mask==0] > threshold
+        mask[mask==0] = diff
+    return mask 
+    """
+
+    return _compare_pixels(img, background, threshold)
+
+
+@profile
+def _compare_pixels(img, background, threshold):
+    """Compare a 2-D or 3-D image array
+    to a background value given a certain threshold"""
     is_num = isinstance(background, int)
     if background - BLACK <= 5:
         diff = img - background > threshold
@@ -22,6 +51,7 @@ def find_foreground(img, background, config):
     if len(diff.shape) == 3:
         diff = np.any(diff, axis=2)  # we're using a 3D array
     return diff
+   
 
 
 def simplify_background(background, config):
@@ -41,39 +71,4 @@ def simplify_background(background, config):
             break  # we've simplified the background as much as we can
     return background
 
-
-class Subject(object):
-    """Holds foreground/background data of an image"""
-
-    def __init__(self, img, config=config()):
-        self.img = img
-        self._foreground_select = None
-        self._background_select = None
-        self._foreground = None
-        self._background = None
-        self._config = config
-
-    def select_foreground(self):
-        if self._foreground_select is None:
-            self._foreground_select = self.img[self.foreground]
-        return self._foreground_select
-
-    def select_background(self):
-        if self._background_select is None:
-            self._background_select = self.img[self.background]
-        return self._background_select
-
-    @property
-    def foreground(self):
-        if self._foreground is None:
-            bg = self._config["bg_value"]
-            fg = find_foreground(self.img, bg, self._config)
-            self._foreground = fg
-        return self._foreground 
-
-    @property
-    def background(self):
-        if self._background is None:
-            self._background = ~ self.foreground
-        return self._background
 
