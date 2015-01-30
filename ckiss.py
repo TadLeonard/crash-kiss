@@ -37,10 +37,7 @@ parser.add_argument("-d", "--max-depth",
 def main():
     args = parser.parse_args()
     img = imread.imread(args.target)
-    conf = config.config(
-        bg_value=args.bg_value,
-        threshold=args.threshold)
-    subject = edge.Subject(img, conf)
+    fg = edge.find_foreground(img, args.bg_value, args.threshold)
      
     # Various things to do with the result of our image mutations
     if args.reveal_foreground:
@@ -48,7 +45,7 @@ def main():
     if args.reveal_background:
         edge.reveal_background(subject)
     if args.smash:
-        edge.center_smash(img, subject, args.max_depth)
+        edge.center_smash(img, fg, args.max_depth)
     opts = {"quality": 100}  # no JPEG compression
     if args.outfile:
         imread.imwrite(args.outfile, img, opts=opts)
