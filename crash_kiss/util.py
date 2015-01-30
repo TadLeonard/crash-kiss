@@ -1,6 +1,20 @@
 from six.moves import zip
 
 
+def combine_images(imgs, horizontal=True):
+    axis = 1 if horizontal else 0
+    combined = imgs[0]
+    for img in imgs[1:]:
+        combined = np.append(combined, img, axis=axis)
+    return combined
+
+
+def bisect_img(img):
+    width = img.shape[1]
+    half = width // 2
+    return img[:, half:], img[:, :half]
+ 
+
 def orient_right_to_left(img):
     return invert_horizontal(img)
 
