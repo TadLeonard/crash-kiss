@@ -6,7 +6,7 @@ import numpy as np
 from crash_kiss.config import BLACK, WHITE, config
 
 
-@profile
+#@profile
 def find_foreground(img, background, config):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
@@ -14,8 +14,6 @@ def find_foreground(img, background, config):
     by checking to see if the background value is near 0 or 255."""
     threshold = config["threshold"]
     mask = _compare_pixels(img, background, threshold)
-    a = mask.ravel()
-    a[a==0] = 1
     return mask
     
     """
@@ -37,7 +35,7 @@ def find_foreground(img, background, config):
     return _compare_pixels(img, background, threshold)
 
 
-@profile
+#@profile
 def _compare_pixels(img, background, threshold):
     """Compare a 2-D or 3-D image array
     to a background value given a certain threshold"""
@@ -52,7 +50,6 @@ def _compare_pixels(img, background, threshold):
         diff = np.any(diff, axis=2)  # we're using a 3D array
     return diff
    
-
 
 def simplify_background(background, config):
     """See if the background's RGB elements are similar.
