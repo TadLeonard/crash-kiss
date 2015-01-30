@@ -103,11 +103,11 @@ def run():
         if args.smash == "center":
             raise NotImplementedError("Can't center smash yet")
         elif args.smash == "side":
-            mutate.side_smash(subject)
+            outer_edge.side_smash(subject)
 
     # Various things to do with the result of our image mutations
     if args.reveal_edges:
-        mutate.reveal_outer_edges(subject, args.reveal_width)
+        outer_edge.reveal_edges(subject, args.reveal_width)
     if args.outfile:
         imread.imwrite(args.outfile, img)
     else:
