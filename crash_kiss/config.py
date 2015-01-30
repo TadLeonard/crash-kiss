@@ -23,6 +23,7 @@ _config_defaults = dict(
     chunksize=300,
     bg_value=WHITE,
     rgb_select=None,
+    max_smash_depth=100,
 )
 
 
