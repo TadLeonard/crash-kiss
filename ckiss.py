@@ -4,7 +4,7 @@ Smashes the things on the left and right side of an image towards the center
 """
 
 import argparse
-from crash_kiss import edge, mutate, config
+from crash_kiss import edge, config
 import imread
 
 
@@ -44,11 +44,11 @@ def main():
      
     # Various things to do with the result of our image mutations
     if args.reveal_foreground:
-        mutate.reveal_foreground(subject)
+        edge.reveal_foreground(subject)
     if args.reveal_background:
-        mutate.reveal_background(subject)
+        edge.reveal_background(subject)
     if args.smash:
-        mutate.center_smash(img, subject, args.max_depth)
+        edge.center_smash(img, subject, args.max_depth)
     opts = {"quality": 100}  # no JPEG compression
     if args.outfile:
         imread.imwrite(args.outfile, img, opts=opts)

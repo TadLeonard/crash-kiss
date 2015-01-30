@@ -8,7 +8,7 @@ import argparse
 import os
 import tempfile
 import imread
-from crash_kiss import outer_edge, mutate, util, config
+from crash_kiss import outer_edge, util, config
 
 
 parser = argparse.ArgumentParser(
@@ -75,7 +75,7 @@ def run():
     elif len(imgs) == 1:
         img = imgs[0]
     elif len(imgs) > 1:
-        img = mutate.combine_images(imgs, horizontal=True)
+        img = util.combine_images(imgs, horizontal=True)
 
     # change the orientation of the image if a non-left direction is specified
     working_img = _orientors[args.direction](img)
