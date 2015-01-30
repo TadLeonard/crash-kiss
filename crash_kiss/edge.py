@@ -8,12 +8,11 @@ import crash_kiss.util as util
 
 
 #@profile
-def find_foreground(img, background, config):
+def find_foreground(img, background, threshold):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
     to a simple int or float, we'll try to avoid calling `np.abs`
     by checking to see if the background value is near 0 or 255."""
-    threshold = config["threshold"]
     mask = _compare_pixels(img, background, threshold)
     return mask
     
@@ -70,7 +69,7 @@ def simplify_background(background, config):
     return background
 
 
-@profile
+#@profile
 def center_smash(img, foreground, maxlen):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
