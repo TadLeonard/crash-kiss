@@ -8,11 +8,12 @@ from crash_kiss.config import WHITE, BLACK
 from crash_kiss import util
 
 
-def center_smash(img, subject):
+@profile
+def center_smash(img, foreground, maxlen):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
-    fg = subject.foreground
+    fg = foreground[:]
     fg_l, fg_r = bisect_img(fg)
     fg_l = util.invert_horizontal(fg_l)
     mid_idx = fg_l.shape[1]  # start idx for LHS of `right`
@@ -28,30 +29,8 @@ def center_smash(img, subject):
         img_row[start_idx: stop_idx] = sub_row
         img_row[:start_idx] = WHITE
         img_row[stop_idx:] = WHITE
-
-
-def _iter_offsets(left_start, right_start):
-    """Takes two rows of the foreground mask and determines
-    the left and right offset required to join the two subjects"""
-    for fg_l, fg_r in zip(left, right):
-        if fg_l[0] and fg_r[0]:
-            yield 0  # the subject is ON the middle line
-        l_offs = np.argmax(fg_l)
-        r_offs = np.argmax(fg_r)
-        if not l_offs and not fg_l[0]:
-            yield fg_r.shape[0]
-            l_offs = fg_l.shape[0]
-        yield r_offs - l_offs 
-        if l_offs == 0 and fg_l[0]:
-            pass
-         
-
-
-def _iter_slice_indices(fg_row, offset):
-    while True:
-        pass
-        
-    
+    img[:maxlen] = WHITE
+    img[-maxlen:] = WHITE
 
 
 def outer_side_smash(subject, out=None, target_edge=None):
