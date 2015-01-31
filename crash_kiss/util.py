@@ -68,10 +68,10 @@ def get_rgb_view(img, rgb_indices):
     select = _get_rgb_select(img, rgb_indices)
     # We CANNOT use advanced indexing here!
     # Copies of large images are just too expensive.
-    if select == tuple(range(view.shape[2])):
+    if select == tuple(range(img.shape[2])):
         return img  # we've selected ALL of RGB
     elif len(select) == 1:
-        self._rgb_view = view[:, :, select[0]]  # just a 2-D view
+        return img[:, :, select[0]]  # just a 2-D view
     else:
         try:
             return _rgb_select[select](img)  # a fancy sliced view
@@ -82,7 +82,7 @@ def get_rgb_view(img, rgb_indices):
 
 
 def _get_rgb_select(img, rgb_indices):
-    rgb_indices = rgb_indices or range(self.img.shape[2])
+    rgb_indices = rgb_indices or range(img.shape[2])
     return tuple(sorted(set(rgb_indices)))
 
 
