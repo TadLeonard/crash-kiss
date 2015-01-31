@@ -7,7 +7,6 @@ from crash_kiss.config import BLACK, WHITE, config
 import crash_kiss.util as util
 
 
-@profile
 def find_foreground(img, background, threshold):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
@@ -26,7 +25,6 @@ def find_foreground(img, background, threshold):
     return fg
 
 
-@profile
 def _compare_pixels(img, background, threshold):
     """Compare a 2-D or 3-D image array
     to a background value given a certain threshold"""
@@ -60,7 +58,6 @@ def simplify_background(background, config):
     return background
 
 
-@profile
 def center_smash(img, foreground, maxlen):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
