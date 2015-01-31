@@ -7,35 +7,26 @@ from crash_kiss.config import BLACK, WHITE, config
 import crash_kiss.util as util
 
 
-#@profile
+@profile
 def find_foreground(img, background, threshold):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
     to a simple int or float, we'll try to avoid calling `np.abs`
     by checking to see if the background value is near 0 or 255."""
-    mask = _compare_pixels(img, background, threshold)
-    return mask
+    if len(img.shape) == 2:
+        return _compare_pixels(img, background, threshold)
+    rgb_views = [img[:, :, idx] for idx in range(img.shape[-1])]
     
-    """
-    mask = background - img[:, :, 0] > threshold
-
-    print np.count_nonzero(mask)
-    mask[mask==0] = background - img[mask==0][:, :, 1] > threshold
-    print np.count_nonzero(mask)
-    mask[mask==0] = background - img[:, :, 2][mask==0] > threshold
-    print np.count_nonzero(mask)
-    return mask
-    
-    for color in range(img.shape[-1]):
-        diff = background - img[:, :, color][mask==0] > threshold
-        mask[mask==0] = diff
-    return mask 
-    """
-
-    return _compare_pixels(img, background, threshold)
+    # the foreground is a 2D array where 1==foreground 0==background
+    fg = _compare_pixels(rgb_views[0], background, threshold)
+    for view in rgb_views[1:]:
+        bg = fg == 0
+        new_data = _compare_pixels(view[bg], background, threshold)
+        fg[bg] = new_data
+    return fg
 
 
-#@profile
+@profile
 def _compare_pixels(img, background, threshold):
     """Compare a 2-D or 3-D image array
     to a background value given a certain threshold"""
@@ -69,7 +60,7 @@ def simplify_background(background, config):
     return background
 
 
-#@profile
+@profile
 def center_smash(img, foreground, maxlen):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
@@ -94,12 +85,10 @@ def center_smash(img, foreground, maxlen):
     img[-maxlen:] = WHITE
 
 
-def reveal_foreground(subject):
-    subject.img[subject.foreground] = BLACK
+def reveal_foreground(img, foreground):
+    img[foreground] = BLACK
 
 
-def reveal_background(subject):
-    subject.img[subject.background] = WHITE
-
-
+def reveal_background(img, foreground):
+    img[foreground == 0] = WHITE
 
