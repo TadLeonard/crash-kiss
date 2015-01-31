@@ -4,7 +4,7 @@ Smashes the things on the left and right side of an image towards the center
 """
 
 import argparse
-from crash_kiss import edge, config
+from crash_kiss import edge, config, util
 import imread
 
 
@@ -32,18 +32,23 @@ parser.add_argument("-d", "--max-depth",
                     help="Max number of pixels that the left and right "
                          "subjects will smoosh into each other. Neither face "
                          "will collapse by more than max_depth//2")
+parser.add_argument("-r", "--rgb-select", default=_conf["rgb_select"],
+                    type=lambda x: sorted(map(int, x.split(","))),
+                    help="Find edges based on a subset of RGB(A?) by "
+                         "passing a comma-sep list of indices")
 
 
 def main():
     args = parser.parse_args()
     img = imread.imread(args.target)
-    fg = edge.find_foreground(img, args.bg_value, args.threshold)
+    view = util.get_rgb_view(img, args.rgb_select)
+    fg = edge.find_foreground(view, args.bg_value, args.threshold)
      
     # Various things to do with the result of our image mutations
     if args.reveal_foreground:
-        edge.reveal_foreground(subject)
+        edge.reveal_foreground(img, fg)
     if args.reveal_background:
-        edge.reveal_background(subject)
+        edge.reveal_background(img, fg)
     if args.smash:
         edge.center_smash(img, fg, args.max_depth)
     opts = {"quality": 100}  # no JPEG compression
