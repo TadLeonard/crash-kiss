@@ -41,16 +41,17 @@ parser.add_argument("-r", "--rgb-select", default=_conf["rgb_select"],
 def main():
     args = parser.parse_args()
     img = imread.imread(args.target)
-    view = util.get_rgb_view(img, args.rgb_select)
+    view, bounds = edge.get_foreground_area(img, args.max_depth)
+    view = util.get_rgb_view(view, args.rgb_select)
     fg = edge.find_foreground(view, args.bg_value, args.threshold)
      
     # Various things to do with the result of our image mutations
     if args.reveal_foreground:
-        edge.reveal_foreground(img, fg)
+        edge.reveal_foreground(view, fg)
     if args.reveal_background:
-        edge.reveal_background(img, fg)
+        edge.reveal_background(view, fg)
     if args.smash:
-        edge.center_smash(img, fg, args.max_depth)
+        edge.center_smash(img, fg, bounds)
     opts = {"quality": 100}  # no JPEG compression
     if args.outfile:
         imread.imwrite(args.outfile, img, opts=opts)

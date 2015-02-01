@@ -2,9 +2,11 @@
 background (i.e. mostly white or black)"""
 
 from __future__ import division
+from collections import namedtuple
 import numpy as np
 from crash_kiss.config import BLACK, WHITE, config
 import crash_kiss.util as util
+
 
 
 def find_foreground(img, background, threshold):
@@ -58,18 +60,29 @@ def simplify_background(background, config):
     return background
 
 
-def center_smash(img, foreground, maxlen):
+_NO_FG = 0xFFFF
+
+
+def center_smash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
-    fg = foreground[:]
-    fg_l, fg_r = util.bisect_img(fg)
+    fg_l = fg[:bounds.fg_mid]
     fg_l = util.invert_horizontal(fg_l)
-    mid_idx = fg_l.shape[1]  # start idx for LHS of `right`
+    fg_r = fg[bounds.fg_mid:]
+     
     l_start = np.argmax(fg_l, axis=1)
+    l_start[fg_l[:, 0] == 0] = _NO_FG
     r_start = np.argmax(fg_r, axis=1)
-    offs = r_start - l_start
-    for img_row, offs, fg_row in zip(img, offs, fg):
+    r_start[fg_r[:, 0] == 0] = _NO_FG
+
+    for irow, ls, rs, frow in zip(img, l_start, r_start, fg):
+        if ls == _NO_FG and rs == _NO_FG:
+            l_shift = max_depth
+            r_shift = max_depth
+        if ls == _NO_FG:
+            
+        mov = rs - ls 
         sub_row = img_row[fg_row]
         sub_len = sub_row.shape[0]
         halflen = sub_len // 2  # always truncate; we can't do any better
@@ -78,8 +91,30 @@ def center_smash(img, foreground, maxlen):
         img_row[start_idx: stop_idx] = sub_row
         img_row[:start_idx] = WHITE
         img_row[stop_idx:] = WHITE
-    img[:maxlen] = WHITE
-    img[-maxlen:] = WHITE
+
+
+def get_foreground_area(img, max_depth):
+    bounds = _get_fg_bounds(img.shape, max_depth)
+    return img[:, bounds.start:bounds.stop], bounds
+
+
+_fg_bounds = namedtuple("fg_bounds", "img_start img_stop fg_mid")
+
+
+def _get_fg_bounds(img_shape, max_depth):
+    """Returns start, stop idx of the 'smashable foreground'
+    area in the middle of an image.
+
+    Indexing the image with `img[:, start:stop]` will successfully
+    select the foreground columns."""
+    width = img_shape[1]
+    half = width // 2
+    if max_depth >= half or max_depth == FULL_DEPTH:
+        return 0, width
+    start = (width // 2) - (max_depth // 2)
+    stop = start + max_depth
+    fg_mid = (stop - start) // 2
+    return _fg_bounds(start, stop, fg_mid)
 
 
 def reveal_foreground(img, foreground):
