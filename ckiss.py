@@ -28,10 +28,10 @@ parser.add_argument("-t", "--threshold",
                     default=_conf["threshold"], type=int)
 parser.add_argument("-s", "--smash", action="store_true")
 parser.add_argument("-d", "--max-depth",
-                    default=_conf["max_smash_depth"], type=int,
+                    default=_conf["max_depth"], type=int,
                     help="Max number of pixels that the left and right "
                          "subjects will smoosh into each other. Neither face "
-                         "will collapse by more than max_depth//2")
+                         "will collapse by more than max_depth")
 parser.add_argument("-r", "--rgb-select", default=_conf["rgb_select"],
                     type=lambda x: sorted(map(int, x.split(","))),
                     help="Find edges based on a subset of RGB(A?) by "
