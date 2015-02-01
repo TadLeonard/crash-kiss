@@ -13,6 +13,7 @@ def config(**kw_overrides):
 WHITE = 255  # the default white background value
 BLACK = 0
 AUTO = "auto"  # key used to auto-gather the background
+FULL_DEPTH = "full"
 
 
 _config_defaults = dict(
@@ -23,7 +24,7 @@ _config_defaults = dict(
     chunksize=300,
     bg_value=WHITE,
     rgb_select=None,
-    max_smash_depth=100,
+    max_smash_depth=FULL_DEPTH,
 )
 
 
