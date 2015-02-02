@@ -4,7 +4,7 @@ background (i.e. mostly white or black)"""
 from __future__ import division
 from collections import namedtuple
 import numpy as np
-from crash_kiss.config import BLACK, WHITE, config
+from crash_kiss.config import BLACK, WHITE, FULL_DEPTH, config
 import crash_kiss.util as util
 
 
@@ -60,45 +60,50 @@ def simplify_background(background, config):
     return background
 
 
-_NO_FG = 0xFFFF
+_NO_MID_FG = 0xFFFF
 
 
 def center_smash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
-    fg_l = fg[:bounds.fg_mid]
+    max_depth = fg.shape[1] // 4
+    fg_l = fg[:, :bounds.fg_mid]
     fg_l = util.invert_horizontal(fg_l)
-    fg_r = fg[bounds.fg_mid:]
+    fg_r = fg[:, bounds.fg_mid:]
      
     l_start = np.argmax(fg_l, axis=1)
-    l_start[fg_l[:, 0] == 0] = _NO_FG
+    l_start[l_start==0][fg_l[:, 0] == 0] = _NO_MID_FG
     r_start = np.argmax(fg_r, axis=1)
-    r_start[fg_r[:, 0] == 0] = _NO_FG
+    r_start[r_start==0][fg_r[:, 0] == 0] = _NO_MID_FG
 
     for irow, ls, rs, frow in zip(img, l_start, r_start, fg):
-        if ls == _NO_FG and rs == _NO_FG:
-            l_shift = max_depth
-            r_shift = max_depth
-        if ls == _NO_FG:
-            
-        mov = rs - ls 
-        sub_row = img_row[fg_row]
-        sub_len = sub_row.shape[0]
-        halflen = sub_len // 2  # always truncate; we can't do any better
-        start_idx = mid_idx - halflen
-        stop_idx = start_idx + sub_len
-        img_row[start_idx: stop_idx] = sub_row
-        img_row[:start_idx] = WHITE
-        img_row[stop_idx:] = WHITE
+        if ls == _NO_MID_FG or rs == _NO_MID_FG:
+            # nothing in the selection zone
+            # no contact can be made
+            lshift = max_depth
+            rshift = max_depth
+        elif rs - ls < max_depth * 2:
+            print "skip"
+            # nothing in the smashing zone
+            # no contact can be made 
+            pass
+        else:
+            # there's something to smash
+            print "SKIP"
+            l_shift = rs - ls
+        irow[lshift:bounds.start+lshift] = irow[:bounds.start]
+        irow[:lshift] = WHITE
+        irow[bounds.stop-rshift:-rshift] = irow[bounds.stop:]
+        irow[-rshift:] = WHITE
 
-
+    
 def get_foreground_area(img, max_depth):
     bounds = _get_fg_bounds(img.shape, max_depth)
     return img[:, bounds.start:bounds.stop], bounds
 
 
-_fg_bounds = namedtuple("fg_bounds", "img_start img_stop fg_mid")
+_fg_bounds = namedtuple("fg_bounds", "start stop fg_mid")
 
 
 def _get_fg_bounds(img_shape, max_depth):
@@ -110,17 +115,18 @@ def _get_fg_bounds(img_shape, max_depth):
     width = img_shape[1]
     half = width // 2
     if max_depth >= half or max_depth == FULL_DEPTH:
-        return 0, width
-    start = (width // 2) - (max_depth // 2)
-    stop = start + max_depth
+        max_depth = width // 4
+    start = (width // 2) - (max_depth * 2)
+    stop = start + max_depth * 4
+    assert stop - start == max_depth * 4
     fg_mid = (stop - start) // 2
     return _fg_bounds(start, stop, fg_mid)
 
 
-def reveal_foreground(img, foreground):
-    img[foreground] = BLACK
+def reveal_foreground(img, foreground, bounds):
+    img[:, bounds.start: bounds.stop][foreground] = BLACK
 
 
-def reveal_background(img, foreground):
-    img[foreground == 0] = WHITE
+def reveal_background(img, foreground, bounds):
+    img[:, bounds.start: bounds.stop][foreground] = WHITE
 
