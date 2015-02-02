@@ -27,8 +27,8 @@ parser.add_argument("-t", "--threshold",
                          "to determine an edge",
                     default=_conf["threshold"], type=int)
 parser.add_argument("-s", "--smash", action="store_true")
-parser.add_argument("-d", "--max-depth",
-                    default=_conf["max_depth"], type=int,
+parser.add_argument("-d", "--max-depth", type=int,
+                    default=_conf["max_depth"],
                     help="Max number of pixels that the left and right "
                          "subjects will smoosh into each other. Neither face "
                          "will collapse by more than max_depth")
@@ -47,9 +47,9 @@ def main():
      
     # Various things to do with the result of our image mutations
     if args.reveal_foreground:
-        edge.reveal_foreground(view, fg)
+        edge.reveal_foreground(img, fg, bounds)
     if args.reveal_background:
-        edge.reveal_background(view, fg)
+        edge.reveal_background(img, fg, bounds)
     if args.smash:
         edge.center_smash(img, fg, bounds)
     opts = {"quality": 100}  # no JPEG compression
