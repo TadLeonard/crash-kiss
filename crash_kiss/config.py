@@ -13,7 +13,7 @@ def config(**kw_overrides):
 WHITE = 255  # the default white background value
 BLACK = 0
 AUTO = "auto"  # key used to auto-gather the background
-FULL_DEPTH = "full"
+FULL_DEPTH = 0xFFFF
 
 
 _config_defaults = dict(
