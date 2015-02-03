@@ -60,42 +60,53 @@ def simplify_background(background, config):
     return background
 
 
-_NO_MID_FG = 0xFFFF
+_MID_FG = 0xFFFF
 
 
+@profile
 def center_smash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
+    start, stop, fg_mid = bounds
     max_depth = fg.shape[1] // 4
+    side_len = fg.shape[1] // 2
     fg_l = fg[:, :bounds.fg_mid]
     fg_l = util.invert_horizontal(fg_l)
     fg_r = fg[:, bounds.fg_mid:]
      
-    l_start = np.argmax(fg_l, axis=1)
-    l_start[l_start==0][fg_l[:, 0] == 0] = _NO_MID_FG
-    r_start = np.argmax(fg_r, axis=1)
-    r_start[r_start==0][fg_r[:, 0] == 0] = _NO_MID_FG
+    lstart = np.argmax(fg_l, axis=1)
+    lstart[fg_l[:, 0] == 1] = _MID_FG
+    rstart = np.argmax(fg_r, axis=1)
+    rstart[fg_r[:, 0] == 1] = _MID_FG
 
-    for irow, ls, rs, frow in zip(img, l_start, r_start, fg):
-        if ls == _NO_MID_FG or rs == _NO_MID_FG:
-            # nothing in the selection zone
+    for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
+        if not ls or not rs:
             # no contact can be made
-            lshift = max_depth
-            rshift = max_depth
-        elif rs - ls < max_depth * 2:
-            print "skip"
-            # nothing in the smashing zone
-            # no contact can be made 
-            pass
+            lshift = rshift = max_depth * 2
+        elif rs + ls < max_depth * 2:
+            print rs-ls
+            print 'close!'
+    #        continue
         else:
+            print 'FAR'
+     #       continue
             # there's something to smash
-            print "SKIP"
-            l_shift = rs - ls
-        irow[lshift:bounds.start+lshift] = irow[:bounds.start]
+            subj = irow[start: stop][frow]
+            subjl = len(subj)
+            offs = rs - ls
+            fstart = start + fg_mid + offs - (subjl/2)
+            lshift = fstart - start
+            rshift = stop - (fstart + subjl)
+            irow[fstart: fstart + subjl] = subj
+        irow[lshift: start+lshift] = irow[:start]
+        irow[stop-rshift:-rshift] = irow[stop:]
         irow[:lshift] = WHITE
-        irow[bounds.stop-rshift:-rshift] = irow[bounds.stop:]
         irow[-rshift:] = WHITE
+    img[:, start-5:start] = [255,0,0]
+    img[:, stop:stop+5] = [0,255,0]
+    b = start + 2*max_depth
+    img[:, b-2:b+2] = [255, 255, 0]
 
     
 def get_foreground_area(img, max_depth):
