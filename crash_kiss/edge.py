@@ -84,33 +84,46 @@ def center_smash(img, fg, bounds):
 
     for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
         lmov = rmov = max_depth
-        if not ls and not rs:
-            # no contact can be made
+        if rs == _MID_FG and ls == _MID_FG:
+            # NOTE: smash behavior not fully defined yet
+            # (if the subject overlaps the middle)
+            lsubj = irow[start+max_depth: center][frow[max_depth:fg_mid]].copy()
+            rsubj = irow[center: center+max_depth][frow[fg_mid:fg_mid+max_depth]].copy()
+            llen = len(lsubj)
+            rlen = len(rsubj)
+            lmov = max_depth - llen
+            rmov = max_depth - rlen
+            irow[lmov: center] = irow[:center - lmov]
+            irow[center - llen: center] = lsubj
+            irow[center: -rmov] = irow[center + rmov:]
+            irow[center: center + rlen] = rsubj
+        elif not ls and not rs:
+            irow[center + rmov: -rmov] = irow[stop:]
             irow[lmov: start+lmov] = irow[:start]
-            irow[stop-rmov: -rmov] = irow[stop:]
-        elif not np.any(frow[max_depth: -max_depth]):
+        elif not ls or not rs and (ls + rs > max_depth):
+            # no contact can be made
+            irow[center: -rmov] = irow[center + rmov:]
+            irow[lmov: center] = irow[:start + lmov]
+        elif ls and not rs:
+            # no contact is possible, but there's a left-over-center overshoot
+            irow[center + rmov: -rmov] = irow[stop:]
+            overshoot = ls - max_depth
+            assert overshoot > 0
+            print rs, ls, overshoot
+            irow[lmov: center+overshoot] = irow[:center-ls]
+        elif rs:
+            # no contact is possible
+            # a right-over-center overshoot is possible
+            irow[:] = [200, 200, 200] 
+        elif (ls >= max_depth) and (rs >= max_depth):
             # no contact can be made but
             # we'll select & shift the foreground differently
             irow[lmov: start+lmov*2] = irow[:start+max_depth]
             irow[center: -rmov] = irow[stop-rmov:]
-        elif not ls:
-            # no contact can be made, but the order we do things matters
-            # because the background of the left side could cover up the
-            # foreground of the right side
-            subj = irow[stop-(side_len-rs): stop].copy()
-            irow[lmov: start+lmov] = irow[:start]
-            irow[stop-rmov: -rmov] = irow[stop:]
-            irow[stop-rmov-len(subj): stop-rmov] = subj
-        elif not rs:
-            # no contact can be made, but the order we do things matters
-            # because the background of the right side could cover up the
-            # foreground of the left side
-            subj = irow[start: start + (side_len-ls)].copy()
-            irow[stop-rmov: -rmov] = irow[stop:]
-            irow[lmov: start+lmov] = irow[:start]
-            irow[start+lmov: start+lmov+len(subj)] = subj
-        elif rs and ls and np.any(frow[max_depth: -max_depth]):
+        elif rs + ls <= side_len:
             # contact will be made (this is the "crash" or "smash")
+            irow[:] = [100, 0, 0]  # dark red
+            continue
             subj = irow[start: stop][frow]
             subjl = len(subj)
             offs = rs - ls
@@ -126,11 +139,14 @@ def center_smash(img, fg, bounds):
         else:
             # contact won't be made, but white space may cover
             # either side of the subject if we're not careful
+            irow[:] = [128, 255, 0]  # bright green
+            continue
             lsubj = irow[start: start+rs].copy()
             rsubj = irow[stop-side_len+rs:stop].copy()
-            irow[stop-rmov: -rmov] = irow[stop:]
+            irow[center: -rs] = irow[center+rs:]
             irow[lmov: start+lmov] = irow[:start]
             irow[start+lmov:start+lmov+len(lsubj)] = lsubj 
+            irow[center+rs-rmov:center+rs-rmov+len(rsubj)] = rsubj
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
 
