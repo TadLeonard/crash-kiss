@@ -71,6 +71,7 @@ def center_smash(img, fg, bounds):
     start, stop, fg_mid = bounds
     rlen = img.shape[1] - stop
     max_depth = fg.shape[1] // 4
+    center = start + 2*max_depth
     side_len = fg.shape[1] // 2
     fg_l = fg[:, :bounds.fg_mid]
     fg_l = util.invert_horizontal(fg_l)
@@ -82,38 +83,43 @@ def center_smash(img, fg, bounds):
     rstart[fg_r[:, 0] == 1] = _MID_FG
 
     for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
-        lshift = rshift = max_depth
+        lmov = rmov = max_depth
         if not ls and not rs:
             # no contact can be made
-            irow[lshift: start+lshift] = irow[:start]
-            irow[stop-rshift: -rshift] = irow[stop:]
+            irow[lmov: start+lmov] = irow[:start]
+            irow[stop-rmov: -rmov] = irow[stop:]
+        elif not np.any(frow[max_depth: -max_depth]):
+            # no contact can be made but
+            # we'll select & shift the foreground differently
+            irow[lmov: start+lmov*2] = irow[:start+max_depth]
+            irow[center: -rmov] = irow[stop-rmov:]
         elif not ls:
             # no contact can be made, but the order we do things matters
             # because the background of the left side could cover up the
             # foreground of the right side
             subj = irow[stop-(side_len-rs): stop].copy()
-            irow[lshift: start+lshift] = irow[:start]
-            irow[stop-rshift: -rshift] = irow[stop:]
-            irow[stop-rshift-len(subj): stop-rshift] = subj
+            irow[lmov: start+lmov] = irow[:start]
+            irow[stop-rmov: -rmov] = irow[stop:]
+            irow[stop-rmov-len(subj): stop-rmov] = subj
         elif not rs:
             # no contact can be made, but the order we do things matters
             # because the background of the right side could cover up the
             # foreground of the left side
             subj = irow[start: start + (side_len-ls)].copy()
-            irow[stop-rshift: -rshift] = irow[stop:]
-            irow[lshift: start+lshift] = irow[:start]
-            irow[start+lshift: start+lshift+len(subj)] = subj
+            irow[stop-rmov: -rmov] = irow[stop:]
+            irow[lmov: start+lmov] = irow[:start]
+            irow[start+lmov: start+lmov+len(subj)] = subj
         elif rs and ls and np.any(frow[max_depth: -max_depth]):
             # contact will be made (this is the "crash" or "smash")
             subj = irow[start: stop][frow]
             subjl = len(subj)
             offs = rs - ls
             fstart = start + fg_mid + offs - (subjl // 2)
-            lshift = fstart - start
-            rshift = stop - (fstart + subjl)
+            lmov = fstart - start
+            rmov = stop - (fstart + subjl)
             irow[fstart: fstart + subjl] = subj
-            irow[lshift: start+lshift] = irow[:start]
-            r1 = irow[stop-rshift:-rshift]
+            irow[lmov: start+lmov] = irow[:start]
+            r1 = irow[stop-rmov:-rmov]
             s2 = rlen - len(r1)
             r2 = irow[stop+s2:]
             r1[:] = r2
@@ -122,11 +128,11 @@ def center_smash(img, fg, bounds):
             # either side of the subject if we're not careful
             lsubj = irow[start: start+rs].copy()
             rsubj = irow[stop-side_len+rs:stop].copy()
-            irow[stop-rshift: -rshift] = irow[stop:]
-            irow[lshift: start+lshift] = irow[:start]
-            irow[start+lshift:start+lshift+len(lsubj)] = lsubj 
-        irow[:lshift] = WHITE
-        irow[-rshift:] = WHITE
+            irow[stop-rmov: -rmov] = irow[stop:]
+            irow[lmov: start+lmov] = irow[:start]
+            irow[start+lmov:start+lmov+len(lsubj)] = lsubj 
+        irow[:lmov] = WHITE
+        irow[-rmov:] = WHITE
 
     
 def get_foreground_area(img, max_depth):
@@ -162,8 +168,9 @@ def reveal_foreground(img, foreground, bounds):
     img[:, start+max_depth: stop-max_depth][critical_fg] = BLACK
     img[:, start-1:start+1] = PURPLE
     img[:, stop-1:stop+1] = PURPLE
-    img[:, start+max_depth-1:start+max_depth+1] = BLACK
-    img[:, stop-max_depth-1:stop-max_depth+1] = BLACK
+    img[:, start+max_depth*2] = BLACK
+    img[:, start+max_depth] = BLACK
+    img[:, stop-max_depth] = BLACK
 
 
 def reveal_background(img, foreground, bounds):
