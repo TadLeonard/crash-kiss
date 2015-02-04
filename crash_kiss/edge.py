@@ -69,21 +69,26 @@ def center_smash(img, fg, bounds):
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
     start, stop, fg_mid = bounds
-    rlen = img.shape[1] - stop
     max_depth = fg.shape[1] // 4
+    fg_l = fg_mid - max_depth
+    fg_r = fg_mid + max_depth
+    rlen = img.shape[1] - stop
+    mid_left = start + max_depth
     center = start + 2*max_depth
+    mid_right = center + max_depth
     side_len = fg.shape[1] // 2
-    fg_l = fg[:, :bounds.fg_mid]
-    fg_l = util.invert_horizontal(fg_l)
-    fg_r = fg[:, bounds.fg_mid:]
-     
-    lstart = np.argmax(fg_l, axis=1)
-    lstart[fg_l[:, 0] == 1] = _MID_FG
-    rstart = np.argmax(fg_r, axis=1)
-    rstart[fg_r[:, 0] == 1] = _MID_FG
+
+    lfg = fg[:, :bounds.fg_mid]
+    lfg = util.invert_horizontal(lfg)
+    rfg = fg[:, bounds.fg_mid:]
+    lstart = np.argmax(lfg, axis=1)
+    lstart[lfg[:, 0] == 1] = _MID_FG
+    rstart = np.argmax(rfg, axis=1)
+    rstart[rfg[:, 0] == 1] = _MID_FG
 
     @profile
     def mov_to_center(irow, frow):
+        """Smash a row whose foreground intersect the center line"""
         lextra = frow[:fg_mid][::-1].argmin()
         rextra = frow[fg_mid:].argmin()    
         lidx = start + max_depth - lextra
@@ -101,55 +106,74 @@ def center_smash(img, fg, bounds):
         irow[center: -rmov] = irow[center + rmov:]
         irow[center: center + rlen] = rsubj
 
+    @profile
+    def mov_empty_fg(irow):
+        """Smash a row with an empty foreground area"""
+        irow[center + rmov: -rmov] = irow[stop:]
+        irow[lmov: start+lmov] = irow[:start]
+
+    @profile
+    def mov_no_collision(irow, frow):
+        """Smash a row whose foreground area will not touch"""
+        irow[center: -rmov] = irow[center + rmov:]
+        irow[lmov: center] = irow[:start + lmov]
+
+    @profile
+    def mov_left_overshoot(irow, frow, left_of_center):
+        """Smash a row where the left side overshoots the center line"""
+        irow[center + max_depth: -max_depth] = irow[stop:]  # no RHS FG
+        irow[max_depth: center + max_depth] = irow[:center] 
+
+    @profile
+    def mov_right_overshoot(irow, frow, right_of_center):
+        """Smash a row where the right side overshoots the center line"""
+        irow[max_depth: center - max_depth] = irow[:start]  # no LHS FG
+        irow[center - max_depth: -max_depth] = irow[center:]
+
     for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
         lmov = rmov = max_depth
         if rs == _MID_FG and ls == _MID_FG:
-            # NOTE: smash behavior not fully defined yet
-            # (if the subject overlaps the middle)
+            # subject overlaps the middle
             mov_to_center(irow, frow)
         elif not ls and not rs:
-            irow[center + rmov: -rmov] = irow[stop:]
-            irow[lmov: start+lmov] = irow[:start]
-        elif not ls or not rs and (ls + rs > max_depth):
+            # no contact possible (nothing in the foreground area)
+            mov_empty_fg(irow)
+        elif (not ls or not rs) and (ls + rs > max_depth):
             # no contact can be made
-            irow[center: -rmov] = irow[center + rmov:]
-            irow[lmov: center] = irow[:start + lmov]
-        elif ls and not rs:
-            # no contact is possible, but there's a left-over-center overshoot
-            irow[center + rmov: -rmov] = irow[stop:]
-            overshoot = ls - max_depth
-            assert overshoot > 0
-            print rs, ls, overshoot
-            irow[lmov: center+overshoot] = irow[:center-ls]
-        elif rs:
-            # no contact is possible
-            # a right-over-center overshoot is possible
-            irow[:] = [200, 200, 200] 
+            mov_no_collision(irow, frow)
+        elif ls <= max_depth and not rs:
+            # no contact, but there's a left-over-center overshoot
+            mov_left_overshoot(irow, frow, ls)
+        elif rs <= max_depth and not ls:
+            # no contact, but there's a right-over-center overshoot
+            mov_right_overshoot(irow, frow, rs)
         elif (ls >= max_depth) and (rs >= max_depth):
-            # no contact can be made but
-            # we'll select & shift the foreground differently
-            irow[lmov: start+lmov*2] = irow[:start+max_depth]
-            irow[center: -rmov] = irow[stop-rmov:]
+            # no contact can be made
+            mov_no_collision(irow, frow)
         elif rs + ls <= side_len:
             # contact will be made (this is the "crash" or "smash")
-            irow[:] = [100, 0, 0]  # dark red
-            continue
-            subj = irow[start: stop][frow]
-            subjl = len(subj)
+            subj = irow[mid_left: mid_right][frow[fg_l: fg_r]].copy()
             offs = rs - ls
-            fstart = start + fg_mid + offs - (subjl // 2)
-            lmov = fstart - start
-            rmov = stop - (fstart + subjl)
-            irow[fstart: fstart + subjl] = subj
-            irow[lmov: start+lmov] = irow[:start]
-            r1 = irow[stop-rmov:-rmov]
-            s2 = rlen - len(r1)
-            r2 = irow[stop+s2:]
-            r1[:] = r2
+            subjl = len(subj)
+            subj_squash = side_len - subjl
+            lmov = l_squash = (subj_squash // 2)  # TRUNCATION less on left
+            rmov = r_squash = subj_squash - l_squash
+            print l_squash, r_squash
+            #fstart = center + offs - subj_squash
+            fstart = center - ls + lmov - 2  # NOTE: WHAT?
+            fstop = fstart + subjl
+            #fstop = center + offs + r_squash
+            irow[lmov: center-ls+lmov] = irow[:center-ls]
+            irow[center+rs-rmov: -rmov] = irow[center+rs:]
+            print fstart, fstop
+            irow[fstart: fstop] = subj
+            #irow[fstart: fstop] = BLACK
+            #irow[:] = BLACK
         else:
             # contact won't be made, but white space may cover
             # either side of the subject if we're not careful
             irow[:] = [128, 255, 0]  # bright green
+            irow[:] = 200
             continue
             lsubj = irow[start: start+rs].copy()
             rsubj = irow[stop-side_len+rs:stop].copy()
