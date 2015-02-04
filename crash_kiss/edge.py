@@ -105,6 +105,7 @@ def center_smash(img, fg, bounds):
         irow[center - llen: center] = lsubj
         irow[center: -rmov] = irow[center + rmov:]
         irow[center: center + rlen] = rsubj
+        return lmov, rmov
 
     @profile
     def mov_empty_fg(irow):
@@ -115,8 +116,8 @@ def center_smash(img, fg, bounds):
     @profile
     def mov_no_collision(irow, frow):
         """Smash a row whose foreground area will not touch"""
-        irow[center: -rmov] = irow[center + rmov:]
-        irow[lmov: center] = irow[:start + lmov]
+        irow[center: -max_depth] = irow[center + max_depth:]
+        irow[max_depth: center] = irow[:start + max_depth]
 
     @profile
     def mov_left_overshoot(irow, frow, left_of_center):
@@ -132,9 +133,7 @@ def center_smash(img, fg, bounds):
 
     @profile
     def smash(irow, frow, ls, rs):
-        subj = irow[mid_left: mid_right][frow[fg_l: fg_r]].copy()
-        subjl = len(subj)
-        squash = side_len - subjl
+        squash = side_len - np.count_nonzero(frow[fg_l: fg_r])
         lmov = lsquash = (squash // 2)  # TRUNCATION less on left
         rmov = rsquash = squash - lsquash
         irow[lmov: center - ls + lmov] = irow[:center - ls] 
@@ -149,28 +148,24 @@ def center_smash(img, fg, bounds):
     for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
         lmov = rmov = max_depth
         if rs == _MID_FG or ls == _MID_FG:
-            # subject overlaps the middle
-            mov_to_center(irow, frow)
+            lmov, rmov = mov_to_center(irow, frow)
         elif not ls and not rs:
-            # no contact possible (nothing in the foreground area)
             mov_empty_fg(irow)
         elif ls and not rs:
-            # no contact, but there's a left-over-center overshoot
             mov_left_overshoot(irow, frow, ls)
         elif rs and not ls:
-            # no contact, but there's a right-over-center overshoot
             mov_right_overshoot(irow, frow, rs)
         elif (ls >= max_depth) and (rs >= max_depth):
-            # no contact can be made
             mov_no_collision(irow, frow)
-        elif rs + ls <= side_len:
-            # contact will be made (this is the "crash" or "smash")
+        elif (rs < max_depth) and (ls < max_depth):
             lmov, rmov = smash(irow, frow, ls, rs)
-            irow[:900] = [255, 255, 0]
+        elif rs + ls <= side_len:
+            irow[:1000] = BLACK
+            lmov, rmov = smash(irow, frow, ls, rs)
         elif (ls < max_depth) or (rs < max_depth):
             mov_near_collision(irow, frow, ls, rs)
         else:
-            raise Exception()
+            raise Exception("This is most unexpected!")
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
 
