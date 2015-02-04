@@ -141,6 +141,11 @@ def center_smash(img, fg, bounds):
         irow[center+rs-rmov: -rmov] = irow[center + rs:]
         return lmov, rmov
 
+    @profile
+    def mov_near_collision(irow, frow, ls, rs):
+        irow[lmov: center - ls + lmov] = irow[: center - ls]
+        irow[center + rs - rmov: -rmov] = irow[center + rs:]
+
     for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
         lmov = rmov = max_depth
         if rs == _MID_FG or ls == _MID_FG:
@@ -163,12 +168,9 @@ def center_smash(img, fg, bounds):
             lmov, rmov = smash(irow, frow, ls, rs)
             irow[:900] = [255, 255, 0]
         elif (ls < max_depth) or (rs < max_depth):
-            irow[lmov: center - ls + lmov] = irow[: center - ls]
-            irow[center + rs - rmov: -rmov] = irow[center + rs:]
+            mov_near_collision(irow, frow, ls, rs)
         else:
             raise Exception()
-            #warnings.warn("Poorly defined behavior!")
-            #mov_no_collision(irow, frow)
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
 
