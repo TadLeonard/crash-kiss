@@ -82,21 +82,31 @@ def center_smash(img, fg, bounds):
     rstart = np.argmax(fg_r, axis=1)
     rstart[fg_r[:, 0] == 1] = _MID_FG
 
+    @profile
+    def mov_to_center(irow, frow):
+        lextra = frow[:fg_mid][::-1].argmin()
+        rextra = frow[fg_mid:].argmin()    
+        lidx = start + max_depth - lextra
+        lidx_fg = max_depth - lextra
+        lsubj = irow[lidx: center][frow[lidx_fg: fg_mid]].copy()
+        ridx = center + max_depth + rextra
+        ridx_fg = fg_mid + max_depth + rextra
+        rsubj = irow[center: ridx][frow[fg_mid: ridx_fg]].copy()
+        llen = len(lsubj)
+        rlen = len(rsubj)
+        lmov = max_depth + lextra - llen
+        rmov = max_depth + rextra - rlen
+        irow[lmov: center] = irow[:center - lmov]
+        irow[center - llen: center] = lsubj
+        irow[center: -rmov] = irow[center + rmov:]
+        irow[center: center + rlen] = rsubj
+
     for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
         lmov = rmov = max_depth
         if rs == _MID_FG and ls == _MID_FG:
             # NOTE: smash behavior not fully defined yet
             # (if the subject overlaps the middle)
-            lsubj = irow[start+max_depth: center][frow[max_depth:fg_mid]].copy()
-            rsubj = irow[center: center+max_depth][frow[fg_mid:fg_mid+max_depth]].copy()
-            llen = len(lsubj)
-            rlen = len(rsubj)
-            lmov = max_depth - llen
-            rmov = max_depth - rlen
-            irow[lmov: center] = irow[:center - lmov]
-            irow[center - llen: center] = lsubj
-            irow[center: -rmov] = irow[center + rmov:]
-            irow[center: center + rlen] = rsubj
+            mov_to_center(irow, frow)
         elif not ls and not rs:
             irow[center + rmov: -rmov] = irow[stop:]
             irow[lmov: start+lmov] = irow[:start]
