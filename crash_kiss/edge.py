@@ -133,11 +133,27 @@ def center_smash(img, fg, bounds):
 
     @profile
     def smash(irow, frow, ls, rs):
+        """Smash a row where both subjects are in the inner quadrants"""
         squash = side_len - np.count_nonzero(frow[fg_l: fg_r])
-        lmov = lsquash = (squash // 2)  # TRUNCATION less on left
-        rmov = rsquash = squash - lsquash
+        lmov = (squash // 2)  # TRUNCATION less on left
+        rmov = squash - lmov
         irow[lmov: center - ls + lmov] = irow[:center - ls] 
         irow[center+rs-rmov: -rmov] = irow[center + rs:]
+        return lmov, rmov
+
+    @profile
+    def smash_asymmetrical(irow, frow, ls, rs):
+        """Smash a row where one subject's in the inner quadrants
+        and the other's in the outer quadrant"""
+        extra_space = side_len - (rs + ls)
+        lextra = extra_space // 2  # TRUNCATION less on left
+        rextra = extra_space - lextra
+        fg_area = frow[fg_mid - ls - lextra: fg_mid + rs + rextra]
+        squash = side_len - np.count_nonzero(fg_area)
+        lmov = (squash // 2)  # TRUNCATION less on left
+        rmov = squash - lmov 
+        irow[lmov: center - ls + lmov] = irow[:center - ls]
+        irow[center + rs - rmov: -rmov] = irow[center + rs:]
         return lmov, rmov
 
     @profile
@@ -160,8 +176,7 @@ def center_smash(img, fg, bounds):
         elif (rs < max_depth) and (ls < max_depth):
             lmov, rmov = smash(irow, frow, ls, rs)
         elif rs + ls <= side_len:
-            irow[:1000] = BLACK
-            lmov, rmov = smash(irow, frow, ls, rs)
+            lmov, rmov = smash_asymmetrical(irow, frow, ls, rs)
         elif (ls < max_depth) or (rs < max_depth):
             mov_near_collision(irow, frow, ls, rs)
         else:
