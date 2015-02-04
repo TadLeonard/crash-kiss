@@ -13,7 +13,7 @@ parser = argparse.ArgumentParser(
 	description="Crash two faces into each other",
 	formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("target")
-parser.add_argument("-b", "--bg-value", type=lambda x: map(int, x.split(",")),
+parser.add_argument("-b", "--bg-value", type=int,
                     help="A number to represent the color of the background "
                          "should the user want to manually set it. Use "
                          "'auto' to automatically gather per-row "
