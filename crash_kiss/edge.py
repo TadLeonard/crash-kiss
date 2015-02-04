@@ -63,7 +63,6 @@ def simplify_background(background, config):
 _MID_FG = 0xFFFF
 
 
-@profile
 def center_smash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
@@ -86,7 +85,6 @@ def center_smash(img, fg, bounds):
     rstart = np.argmax(rfg, axis=1)
     rstart[rfg[:, 0] == 1] = _MID_FG
 
-    @profile
     def mov_to_center(irow, frow):
         """Smash a row whose foreground intersect the center line"""
         lextra = frow[:fg_mid][::-1].argmin()
@@ -107,31 +105,26 @@ def center_smash(img, fg, bounds):
         irow[center: center + rlen] = rsubj
         return lmov, rmov
 
-    @profile
     def mov_empty_fg(irow):
         """Smash a row with an empty foreground area"""
         irow[center + rmov: -rmov] = irow[stop:]
         irow[lmov: start+lmov] = irow[:start]
 
-    @profile
     def mov_no_collision(irow, frow):
         """Smash a row whose foreground area will not touch"""
         irow[center: -max_depth] = irow[center + max_depth:]
         irow[max_depth: center] = irow[:start + max_depth]
 
-    @profile
     def mov_left_overshoot(irow, frow, left_of_center):
         """Smash a row where the left side overshoots the center line"""
         irow[center + max_depth: -max_depth] = irow[stop:]  # no RHS FG
         irow[max_depth: center + max_depth] = irow[:center] 
 
-    @profile
     def mov_right_overshoot(irow, frow, right_of_center):
         """Smash a row where the right side overshoots the center line"""
         irow[max_depth: center - max_depth] = irow[:start]  # no LHS FG
         irow[center - max_depth: -max_depth] = irow[center:]
 
-    @profile
     def smash(irow, frow, ls, rs):
         """Smash a row where both subjects are in the inner quadrants"""
         squash = side_len - np.count_nonzero(frow[fg_l: fg_r])
@@ -141,7 +134,6 @@ def center_smash(img, fg, bounds):
         irow[center+rs-rmov: -rmov] = irow[center + rs:]
         return lmov, rmov
 
-    @profile
     def smash_asymmetrical(irow, frow, ls, rs):
         """Smash a row where one subject's in the inner quadrants
         and the other's in the outer quadrant"""
@@ -156,7 +148,6 @@ def center_smash(img, fg, bounds):
         irow[center + rs - rmov: -rmov] = irow[center + rs:]
         return lmov, rmov
 
-    @profile
     def mov_near_collision(irow, frow, ls, rs):
         irow[lmov: center - ls + lmov] = irow[: center - ls]
         irow[center + rs - rmov: -rmov] = irow[center + rs:]
