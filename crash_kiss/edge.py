@@ -130,21 +130,29 @@ def center_smash(img, fg, bounds):
         irow[max_depth: center - max_depth] = irow[:start]  # no LHS FG
         irow[center - max_depth: -max_depth] = irow[center:]
 
+    @profile
+    def smash(irow, frow, ls, rs):
+        subj = irow[mid_left: mid_right][frow[fg_l: fg_r]].copy()
+        subjl = len(subj)
+        squash = side_len - subjl
+        lmov = lsquash = (squash // 2)  # TRUNCATION less on left
+        rmov = rsquash = squash - lsquash
+        irow[lmov: center - ls + lmov] = irow[:center - ls] 
+        irow[center+rs-rmov: -rmov] = irow[center + rs:]
+        return lmov, rmov
+
     for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
         lmov = rmov = max_depth
-        if rs == _MID_FG and ls == _MID_FG:
+        if rs == _MID_FG or ls == _MID_FG:
             # subject overlaps the middle
             mov_to_center(irow, frow)
         elif not ls and not rs:
             # no contact possible (nothing in the foreground area)
             mov_empty_fg(irow)
-        elif (not ls or not rs) and (ls + rs > max_depth):
-            # no contact can be made
-            mov_no_collision(irow, frow)
-        elif ls <= max_depth and not rs:
+        elif ls and not rs:
             # no contact, but there's a left-over-center overshoot
             mov_left_overshoot(irow, frow, ls)
-        elif rs <= max_depth and not ls:
+        elif rs and not ls:
             # no contact, but there's a right-over-center overshoot
             mov_right_overshoot(irow, frow, rs)
         elif (ls >= max_depth) and (rs >= max_depth):
@@ -152,35 +160,15 @@ def center_smash(img, fg, bounds):
             mov_no_collision(irow, frow)
         elif rs + ls <= side_len:
             # contact will be made (this is the "crash" or "smash")
-            subj = irow[mid_left: mid_right][frow[fg_l: fg_r]].copy()
-            offs = rs - ls
-            subjl = len(subj)
-            subj_squash = side_len - subjl
-            lmov = l_squash = (subj_squash // 2)  # TRUNCATION less on left
-            rmov = r_squash = subj_squash - l_squash
-            print l_squash, r_squash
-            #fstart = center + offs - subj_squash
-            fstart = center - ls + lmov - 2  # NOTE: WHAT?
-            fstop = fstart + subjl
-            #fstop = center + offs + r_squash
-            irow[lmov: center-ls+lmov] = irow[:center-ls]
-            irow[center+rs-rmov: -rmov] = irow[center+rs:]
-            print fstart, fstop
-            irow[fstart: fstop] = subj
-            #irow[fstart: fstop] = BLACK
-            #irow[:] = BLACK
+            lmov, rmov = smash(irow, frow, ls, rs)
+            irow[:900] = [255, 255, 0]
+        elif (ls < max_depth) or (rs < max_depth):
+            irow[lmov: center - ls + lmov] = irow[: center - ls]
+            irow[center + rs - rmov: -rmov] = irow[center + rs:]
         else:
-            # contact won't be made, but white space may cover
-            # either side of the subject if we're not careful
-            irow[:] = [128, 255, 0]  # bright green
-            irow[:] = 200
-            continue
-            lsubj = irow[start: start+rs].copy()
-            rsubj = irow[stop-side_len+rs:stop].copy()
-            irow[center: -rs] = irow[center+rs:]
-            irow[lmov: start+lmov] = irow[:start]
-            irow[start+lmov:start+lmov+len(lsubj)] = lsubj 
-            irow[center+rs-rmov:center+rs-rmov+len(rsubj)] = rsubj
+            raise Exception()
+            #warnings.warn("Poorly defined behavior!")
+            #mov_no_collision(irow, frow)
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
 
