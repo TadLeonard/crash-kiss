@@ -139,19 +139,38 @@ def center_smash(img, fg, bounds):
         return lmov, rmov
 
     def smash2(irow, frow, ls, rs):
-        subj = irow[frow[fg_l: fg_r]]
-        l_subj = irow[frow[fg_l: fg_mid]]
-        
-        subjl = len(subj)
         offs = rs - ls
-        fg_start = center + offs - (subjl // 2)
-        fg_stop = fg_start + subjl
-        
-       # squash = 
+        dist = rs + ls 
+        extra = side_len - dist
+        lextra = extra // 2  # TRUNCATION less on left
+        rextra = extra - lextra
+        start = - ls - lextra + offs
+        mid = start + max_depth
+        stop = start + side_len
+        bmaskl = frow[fg_mid - start: mid]
+        bmaskr = frow[mid: fg_mid + stop]
+        llen = np.count_nonzero(bmaskl)
+        rlen = np.count_nonzero(bmaskr)
+        lsquash = len(bmaskl) - llen
+        rsquash = len(bmaskr) - rlen
+        lsubj = irow[center - start: mid][bmaskl].copy()
+        rsubj = irow[mid: center + stop][bmaskr].copy()
+        irow[lsquash: center - start + lsquash] = irow[:center - start]
+        try:
+            irow[center + stop - rsquash: -rsquash] = irow[center + stop:]
+        except:
+            print 'hey', ls, rs, lsquash, rsquash
+            irow[:] = BLACK
+            return lsquash, rsquash
+        irow[center - start + lsquash: center - start + lsquash + llen] = lsubj
+        print rlen
+        irow[center + stop - rsquash: center + stop - rsquash + rlen] = rsubj
+        return lsquash, rsquash
 
     def smash_asymmetrical(irow, frow, ls, rs):
         """Smash a row where one subject's in the inner quadrants
-        and the other's in the outer quadrant"""
+        and the other's in the outer quadrant. The two sides meet and 
+        any background space between the is collapsed."""
         extra_space = side_len - (rs + ls)
         lextra = extra_space // 2  # TRUNCATION less on left
         rextra = extra_space - lextra
@@ -182,7 +201,8 @@ def center_smash(img, fg, bounds):
         elif (ls >= max_depth) and (rs >= max_depth):
             mov_no_collision(irow, frow)
         elif (rs < max_depth) and (ls < max_depth):
-            lmov, rmov = smash(irow, frow, ls, rs)
+            #lmov, rmov = smash(irow, frow, ls, rs)
+            lmov, rmov = smash2(irow, frow, ls, rs)
         elif rs + ls <= side_len:
             lmov, rmov = smash_asymmetrical(irow, frow, ls, rs)
         elif (ls < max_depth) or (rs < max_depth):
