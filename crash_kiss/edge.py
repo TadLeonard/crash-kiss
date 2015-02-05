@@ -4,7 +4,7 @@ background (i.e. mostly white or black)"""
 from __future__ import division
 from collections import namedtuple
 import numpy as np
-from crash_kiss.config import BLACK, WHITE, PURPLE, FULL_DEPTH, config
+from crash_kiss.config import BLACK, WHITE, PURPLE, TEAL, FULL_DEPTH
 import crash_kiss.util as util
 
 
@@ -215,5 +215,5 @@ def reveal_foreground(img, foreground, bounds):
 
 
 def reveal_background(img, foreground, bounds):
-    img[:, bounds.start: bounds.stop][foreground] = WHITE
+    img[:, bounds.start: bounds.stop][foreground == 0] = TEAL
 
