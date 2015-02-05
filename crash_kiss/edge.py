@@ -4,7 +4,7 @@ background (i.e. mostly white or black)"""
 from __future__ import division
 from collections import namedtuple
 import numpy as np
-from crash_kiss.config import BLACK, WHITE, PURPLE, TEAL, FULL_DEPTH
+from crash_kiss.config import BLACK, WHITE, FULL_DEPTH
 import crash_kiss.util as util
 
 
@@ -201,19 +201,42 @@ def _get_fg_bounds(img_shape, max_depth):
     return _fg_bounds(start, stop, fg_mid)
 
 
+PURPLE = [118, 0, 118]
+TEAL = [60, 120, 160]
+GREEN = [0, 255, 0]
+YELLOW = [255, 255, 0]
+PINK = [255, 0, 255]
+
+
 def reveal_foreground(img, foreground, bounds):
-    max_depth = foreground.shape[1] // 4
+    """Paints the foreground of the foreground selection area
+    1) purple if the pixel is in an OUTER quadrant
+    or 2) black if the pixel is in an INNER quadrant"""
     start, stop, fg_mid = bounds
+    max_depth = (stop - start) // 4
     critical_fg = foreground[:, max_depth: -max_depth]
     img[:, start: stop][foreground] = PURPLE
-    img[:, start+max_depth: stop-max_depth][critical_fg] = BLACK
-    img[:, start-1:start+1] = PURPLE
-    img[:, stop-1:stop+1] = PURPLE
-    img[:, start+max_depth*2] = BLACK
-    img[:, start+max_depth] = BLACK
-    img[:, stop-max_depth] = BLACK
+    img[:, start + max_depth: stop - max_depth][critical_fg] = BLACK
+
+
+def reveal_quadrants(img, bounds):
+    """Places vertical lines to represent the "quadrants" that
+    crash_kiss uses to determine the "smashable area" of the image"""
+    start, stop, fg_mid = bounds
+    max_depth = (stop - start) // 4
+    width = 4
+    width = img.shape[1] // 2000 + 1
+    lmid = start + max_depth
+    mid = start + max_depth * 2
+    rmid = stop - max_depth
+    img[:, start - width: start + width] = GREEN
+    img[:, stop - width: stop + width] = GREEN
+    img[:, mid - width: mid + width] = YELLOW
+    img[:, lmid - width: lmid + width] = PINK
+    img[:, rmid - width: rmid + width] = PINK
 
 
 def reveal_background(img, foreground, bounds):
+    """Paints the background of the foreground selection area teal"""
     img[:, bounds.start: bounds.stop][foreground == 0] = TEAL
 
