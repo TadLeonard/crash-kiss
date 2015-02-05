@@ -22,6 +22,9 @@ parser.add_argument("-b", "--bg-value", type=int,
 parser.add_argument("-o", "--outfile", default=None)
 parser.add_argument("-e", "--reveal-foreground", action="store_true")
 parser.add_argument("-E", "--reveal-background", action="store_true")
+parser.add_argument("-q", "--reveal-quadrants", action="store_true",
+                    help="reveal the inner and outer quadrants of the "
+                         "'smashable area' with vertical lines")
 parser.add_argument("-t", "--threshold",
                     help="min difference between background and foreground "
                          "to determine an edge",
@@ -52,6 +55,8 @@ def main():
         edge.reveal_background(img, fg, bounds)
     if args.smash:
         edge.center_smash(img, fg, bounds)
+    if args.reveal_quadrants:
+        edge.reveal_quadrants(img, bounds)
     opts = {"quality": 100}  # no JPEG compression
     if args.outfile:
         imread.imwrite(args.outfile, img, opts=opts)
