@@ -8,7 +8,6 @@ from crash_kiss.config import BLACK, WHITE, PURPLE, FULL_DEPTH, config
 import crash_kiss.util as util
 
 
-
 def find_foreground(img, background, threshold):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
@@ -109,30 +108,46 @@ def center_smash(img, fg, bounds):
         """Smash a row with an empty foreground area"""
         irow[center + rmov: -rmov] = irow[stop:]
         irow[lmov: start+lmov] = irow[:start]
+        #irow[1600:1800] = [100, 0, 0]  # dark red
 
     def mov_no_collision(irow, frow):
         """Smash a row whose foreground area will not touch"""
         irow[center: -max_depth] = irow[center + max_depth:]
         irow[max_depth: center] = irow[:start + max_depth]
+        #irow[1600:1800] = [200, 0, 0]   # bright red
 
     def mov_left_overshoot(irow, frow, left_of_center):
         """Smash a row where the left side overshoots the center line"""
         irow[center + max_depth: -max_depth] = irow[stop:]  # no RHS FG
         irow[max_depth: center + max_depth] = irow[:center] 
+        #irow[1600:1800] = [0, 100, 0]  # dark green
 
     def mov_right_overshoot(irow, frow, right_of_center):
         """Smash a row where the right side overshoots the center line"""
         irow[max_depth: center - max_depth] = irow[:start]  # no LHS FG
         irow[center - max_depth: -max_depth] = irow[center:]
+        #irow[1600:1800] = [0, 220, 0]  # bright green
 
     def smash(irow, frow, ls, rs):
         """Smash a row where both subjects are in the inner quadrants"""
         squash = side_len - np.count_nonzero(frow[fg_l: fg_r])
         lmov = (squash // 2)  # TRUNCATION less on left
         rmov = squash - lmov
+        irow[center + rs - rmov: -rmov] = irow[center + rs:]
         irow[lmov: center - ls + lmov] = irow[:center - ls] 
-        irow[center+rs-rmov: -rmov] = irow[center + rs:]
+        #irow[1600:1800] = [0, 0, 100]  # dark blue
         return lmov, rmov
+
+    def smash2(irow, frow, ls, rs):
+        subj = irow[frow[fg_l: fg_r]]
+        l_subj = irow[frow[fg_l: fg_mid]]
+        
+        subjl = len(subj)
+        offs = rs - ls
+        fg_start = center + offs - (subjl // 2)
+        fg_stop = fg_start + subjl
+        
+       # squash = 
 
     def smash_asymmetrical(irow, frow, ls, rs):
         """Smash a row where one subject's in the inner quadrants
@@ -146,11 +161,13 @@ def center_smash(img, fg, bounds):
         rmov = squash - lmov 
         irow[lmov: center - ls + lmov] = irow[:center - ls]
         irow[center + rs - rmov: -rmov] = irow[center + rs:]
+        #irow[1600:1800] = [0, 0, 220]  # bright blue
         return lmov, rmov
 
     def mov_near_collision(irow, frow, ls, rs):
         irow[lmov: center - ls + lmov] = irow[: center - ls]
         irow[center + rs - rmov: -rmov] = irow[center + rs:]
+        #irow[1600:1800] = [255, 255, 0]  # yellow
 
     for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
         lmov = rmov = max_depth
@@ -215,5 +232,5 @@ def reveal_foreground(img, foreground, bounds):
 
 
 def reveal_background(img, foreground, bounds):
-    img[:, bounds.start: bounds.stop][foreground] = WHITE
+    img[:, bounds.start: bounds.stop][foreground == 0] = [100, 100, 0]
 
