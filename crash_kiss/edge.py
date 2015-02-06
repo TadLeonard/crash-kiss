@@ -62,7 +62,6 @@ def simplify_background(background, config):
 _MID_FG = 0xFFFF
 
 
-@profile
 def center_smash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
@@ -125,7 +124,6 @@ def center_smash(img, fg, bounds):
         irow[max_depth: mid_left] = irow[:start]  # no LHS FG
         irow[mid_left: -max_depth] = irow[center:]
 
-    @profile
     def smash(irow, frow, ls, rs):
         lextra = rextra = 0
         if ls == _MID_FG:
