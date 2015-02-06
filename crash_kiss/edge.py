@@ -130,7 +130,6 @@ def center_smash(img, fg, bounds):
             lextra = frow[:fg_mid][::-1].argmin()
         if rs == _MID_FG:
             rextra = frow[fg_mid:].argmin()    
-            #irow[:] = BLACK
         offs = rs - ls
         dist = rs + ls - 1
         ledge_mov = dist // 2  # TRUNCATION less on left
