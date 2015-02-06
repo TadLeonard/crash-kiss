@@ -39,11 +39,56 @@ parser.add_argument("-r", "--rgb-select", default=_conf["rgb_select"],
                     type=lambda x: sorted(map(int, x.split(","))),
                     help="Find edges based on a subset of RGB(A?) by "
                          "passing a comma-sep list of indices")
+parser.add_argument("-a", "--auto-run", action="store_true",
+                    help="automatically process new images that appear in "
+                         "the working directory")
+parser.add_argument("-w", "--working-dir",
+                    help="specify the directory for newly processed images "
+                         "in --auto-run mode")
+parser.add_argument("-W", "--working-file-suffix",
+                    help="specify suffix to search for in working dir "
+                         "in --auto-run mode (default is .jpg)")
+parser.add_argument("-u", "--output-suffix",
+                    help="specify the suffix for processed images "
+                         "in --auto-run mode")
+
+
+DEFAULT_OUTPUT_SUFFIX = "smashed"
+DEFAULT_INPUT_SUFFIX = ".jpg"
 
 
 def main():
     args = parser.parse_args()
-    img = imread.imread(args.target)
+    if not args.auto_run and args.output_suffix:
+        parser.error("-u doesn't make sense without -a")
+    elif not args.auto_run and args.working_dir:
+        parser.error("-w doesn't make sense without -a")
+    if args.auto_run:
+        auto_run(args)
+    else:
+        run_once(args)
+        
+
+def auto_run(args):
+    pass
+
+
+def run_once(args):
+    run(args.target, args.outfile, args)
+
+
+def gen_new_files(directory):
+    initial_glob = glob.glob(os.path.join(directory, "*.jpg")
+
+
+def run(target_file, output_file, args):
+    img = imread.imread(target_file)
+    process_img(img, args)
+    save_img(img, output_file)
+    
+ 
+
+def process_img(img, args):
     view, bounds = edge.get_foreground_area(img, args.max_depth)
     view = util.get_rgb_view(view, args.rgb_select)
     fg = edge.find_foreground(view, args.bg_value, args.threshold)
@@ -57,12 +102,12 @@ def main():
         edge.center_smash(img, fg, bounds)
     if args.reveal_quadrants:
         edge.reveal_quadrants(img, bounds)
-    opts = {"quality": 100}  # no JPEG compression
-    if args.outfile:
-        imread.imwrite(args.outfile, img, opts=opts)
-    else:
-        temp = tempfile.mktemp(prefix="ckiss-", suffix=".jpg")
-        imread.imwrite(temp, img, opts=opts)
+    return img
+
+
+def save_img(img, file_name):
+    opts = {"quality": 100}  # max JPEG quality
+    imread.imwrite(file_name, img, opts=opts)
 
 
 if __name__ == "__main__":
