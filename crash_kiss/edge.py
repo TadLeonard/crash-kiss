@@ -126,10 +126,13 @@ def center_smash(img, fg, bounds):
 
     def smash(irow, frow, ls, rs):
         lextra = rextra = 0
-        if ls == _MID_FG:
-            lextra = frow[:fg_mid][::-1].argmin()
-        if rs == _MID_FG:
-            rextra = frow[fg_mid:].argmin()    
+        if ls == _MID_FG or rs == _MID_FG:
+            if ls != _MID_FG or rs != _MID_FG:
+                ls = rs = 0
+            if ls == _MID_FG:
+                lextra = frow[:fg_mid][::-1].argmin()
+            if rs == _MID_FG:
+                rextra = frow[fg_mid:].argmin()    
         offs = rs - ls
         dist = rs + ls - 1
         ledge_mov = dist // 2  # TRUNCATION less on left
