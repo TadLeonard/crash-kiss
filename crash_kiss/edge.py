@@ -115,18 +115,24 @@ def center_smash(img, fg, bounds):
         irow[center: -max_depth] = irow[center + max_depth:]
         irow[max_depth: center] = irow[:start + max_depth]
 
-    def mov_left_overshoot(irow, frow, left_of_center):
+    def mov_left_overshoot(irow, frow, ls):
         """Smash a row where the left side overshoots the center line"""
-        irow[center + max_depth: -max_depth] = irow[stop:]  # no RHS FG
-        irow[max_depth: center + max_depth] = irow[:center] 
+        irow[mid_right: -max_depth] = irow[stop:]  # no RHS FG
+        irow[max_depth: mid_right] = irow[:center] 
 
-    def mov_right_overshoot(irow, frow, right_of_center):
+    def mov_right_overshoot(irow, frow, rs):
         """Smash a row where the right side overshoots the center line"""
-        irow[max_depth: center - max_depth] = irow[:start]  # no LHS FG
-        irow[center - max_depth: -max_depth] = irow[center:]
+        irow[max_depth: mid_left] = irow[:start]  # no LHS FG
+        irow[mid_left: -max_depth] = irow[center:]
 
     @profile
     def smash(irow, frow, ls, rs):
+        lextra = rextra = 0
+        if ls == _MID_FG:
+            lextra = frow[:fg_mid][::-1].argmin()
+        if rs == _MID_FG:
+            rextra = frow[fg_mid:].argmin()    
+            #irow[:] = BLACK
         offs = rs - ls
         dist = rs + ls - 1
         ledge_mov = dist // 2  # TRUNCATION less on left
@@ -139,8 +145,8 @@ def center_smash(img, fg, bounds):
         rlen = np.count_nonzero(r_bg_mask)
         lsquash = len(l_bg_mask) - llen - ledge_mov
         rsquash = len(r_bg_mask) - rlen - redge_mov
-        lmov = ledge_mov + lsquash
-        rmov = redge_mov + rsquash
+        lmov = ledge_mov + lsquash + lextra
+        rmov = redge_mov + rsquash + rextra
         subj = irow[center + fg_l_stop - max_depth: center + fg_r_start + max_depth]
         subj = subj[bg_mask]
         irow[center + fg_l_stop - llen: center + fg_r_start + rlen] = subj
@@ -156,25 +162,22 @@ def center_smash(img, fg, bounds):
 
     for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
         lmov = rmov = max_depth
-        if (rs < max_depth) and (ls < max_depth):
-            lmov, rmov = smash(irow, frow, ls, rs)
-        elif rs + ls <= side_len:
-            lmov, rmov = smash(irow, frow, ls, rs)
-        elif (ls < max_depth) or (rs < max_depth):
-            mov_near_collision(irow, frow, ls, rs)
-        elif rs == _MID_FG or ls == _MID_FG:
-        #    lmov, rmov = mov_to_center(irow, frow)
-            lmov, rmov = smash(irow, frow, rs, ls)
-        elif not ls and not rs:
+        if not ls and not rs:
             mov_empty_fg(irow)
         elif ls and not rs:
             mov_left_overshoot(irow, frow, ls)
         elif rs and not ls:
             mov_right_overshoot(irow, frow, rs)
-        elif (ls >= max_depth) and (rs >= max_depth):
-            mov_no_collision(irow, frow)
+        elif rs == _MID_FG or ls == _MID_FG:
+            lmov, rmov = smash(irow, frow, rs, ls)
+        elif (rs < max_depth) and (ls < max_depth):
+            lmov, rmov = smash(irow, frow, ls, rs)
+        elif rs + ls <= side_len:
+            lmov, rmov = smash(irow, frow, ls, rs)
+        elif (ls < max_depth) or (rs < max_depth):
+            mov_near_collision(irow, frow, ls, rs)
         else:
-            raise Exception("This is most unexpected!")
+            mov_no_collision(irow, frow)
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
 
