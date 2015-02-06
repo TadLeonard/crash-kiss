@@ -62,6 +62,7 @@ def simplify_background(background, config):
 _MID_FG = 0xFFFF
 
 
+@profile
 def center_smash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
@@ -108,37 +109,24 @@ def center_smash(img, fg, bounds):
         """Smash a row with an empty foreground area"""
         irow[center + rmov: -rmov] = irow[stop:]
         irow[lmov: start+lmov] = irow[:start]
-        #irow[1600:1800] = [100, 0, 0]  # dark red
 
     def mov_no_collision(irow, frow):
         """Smash a row whose foreground area will not touch"""
         irow[center: -max_depth] = irow[center + max_depth:]
         irow[max_depth: center] = irow[:start + max_depth]
-        #irow[1600:1800] = [200, 0, 0]   # bright red
 
     def mov_left_overshoot(irow, frow, left_of_center):
         """Smash a row where the left side overshoots the center line"""
         irow[center + max_depth: -max_depth] = irow[stop:]  # no RHS FG
         irow[max_depth: center + max_depth] = irow[:center] 
-        #irow[1600:1800] = [0, 100, 0]  # dark green
 
     def mov_right_overshoot(irow, frow, right_of_center):
         """Smash a row where the right side overshoots the center line"""
         irow[max_depth: center - max_depth] = irow[:start]  # no LHS FG
         irow[center - max_depth: -max_depth] = irow[center:]
-        #irow[1600:1800] = [0, 220, 0]  # bright green
 
+    @profile
     def smash(irow, frow, ls, rs):
-        """Smash a row where both subjects are in the inner quadrants"""
-        squash = side_len - np.count_nonzero(frow[fg_l: fg_r])
-        lmov = (squash // 2)  # TRUNCATION less on left
-        rmov = squash - lmov
-        irow[center + rs - rmov: -rmov] = irow[center + rs:]
-        irow[lmov: center - ls + lmov] = irow[:center - ls] 
-        #irow[1600:1800] = [0, 0, 100]  # dark blue
-        return lmov, rmov
-
-    def smash2(irow, frow, ls, rs):
         offs = rs - ls
         dist = rs + ls - 1
         ledge_mov = dist // 2  # TRUNCATION less on left
@@ -156,37 +144,27 @@ def center_smash(img, fg, bounds):
         subj = irow[center + fg_l_stop - max_depth: center + fg_r_start + max_depth]
         subj = subj[bg_mask]
         irow[center + fg_l_stop - llen: center + fg_r_start + rlen] = subj
-        l_shift_to = irow[lmov: center + fg_l_stop - llen]
-        l_shift_to[:] = irow[:center + fg_l_stop - llen - lmov] 
-        r_shift_to = irow[center + fg_r_start + rlen: -rmov]
-        r_shift_to[:] = irow[center + fg_r_start + rlen + rmov:]
-        return lmov, rmov
-
-    def smash_asymmetrical(irow, frow, ls, rs):
-        """Smash a row where one subject's in the inner quadrants
-        and the other's in the outer quadrant. The two sides meet and 
-        any background space between the is collapsed."""
-        extra_space = side_len - (rs + ls)
-        lextra = extra_space // 2  # TRUNCATION less on left
-        rextra = extra_space - lextra
-        fg_area = frow[fg_mid - ls - lextra: fg_mid + rs + rextra]
-        squash = side_len - np.count_nonzero(fg_area)
-        lmov = (squash // 2)  # TRUNCATION less on left
-        rmov = squash - lmov 
-        irow[lmov: center - ls + lmov] = irow[:center - ls]
-        irow[center + rs - rmov: -rmov] = irow[center + rs:]
-        #irow[1600:1800] = [0, 0, 220]  # bright blue
+        irow[lmov: center + fg_l_stop - llen] = (
+            irow[:center + fg_l_stop - llen - lmov])
+        irow[center + fg_r_start + rlen: -rmov] = (
+            irow[center + fg_r_start + rlen + rmov:])
         return lmov, rmov
 
     def mov_near_collision(irow, frow, ls, rs):
         irow[lmov: center - ls + lmov] = irow[: center - ls]
         irow[center + rs - rmov: -rmov] = irow[center + rs:]
-        #irow[1600:1800] = [255, 255, 0]  # yellow
 
     for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
         lmov = rmov = max_depth
-        if rs == _MID_FG or ls == _MID_FG:
-            lmov, rmov = mov_to_center(irow, frow)
+        if (rs < max_depth) and (ls < max_depth):
+            lmov, rmov = smash(irow, frow, ls, rs)
+        elif rs + ls <= side_len:
+            lmov, rmov = smash(irow, frow, ls, rs)
+        elif (ls < max_depth) or (rs < max_depth):
+            mov_near_collision(irow, frow, ls, rs)
+        elif rs == _MID_FG or ls == _MID_FG:
+        #    lmov, rmov = mov_to_center(irow, frow)
+            lmov, rmov = smash(irow, frow, rs, ls)
         elif not ls and not rs:
             mov_empty_fg(irow)
         elif ls and not rs:
@@ -195,13 +173,6 @@ def center_smash(img, fg, bounds):
             mov_right_overshoot(irow, frow, rs)
         elif (ls >= max_depth) and (rs >= max_depth):
             mov_no_collision(irow, frow)
-        elif (rs < max_depth) and (ls < max_depth):
-            #lmov, rmov = smash(irow, frow, ls, rs)
-            lmov, rmov = smash2(irow, frow, ls, rs)
-        elif rs + ls <= side_len:
-            lmov, rmov = smash_asymmetrical(irow, frow, ls, rs)
-        elif (ls < max_depth) or (rs < max_depth):
-            mov_near_collision(irow, frow, ls, rs)
         else:
             raise Exception("This is most unexpected!")
         irow[:lmov] = WHITE
