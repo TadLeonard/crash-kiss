@@ -4,6 +4,9 @@ Smashes the things on the left and right side of an image towards the center
 """
 
 import argparse
+import os
+import glob
+import time
 from crash_kiss import edge, config, util
 import imread
 
@@ -45,7 +48,7 @@ parser.add_argument("-a", "--auto-run", action="store_true",
 parser.add_argument("-w", "--working-dir",
                     help="specify the directory for newly processed images "
                          "in --auto-run mode")
-parser.add_argument("-W", "--working-file-suffix",
+parser.add_argument("-W", "--search-suffix",
                     help="specify suffix to search for in working dir "
                          "in --auto-run mode (default is .jpg)")
 parser.add_argument("-u", "--output-suffix",
@@ -55,6 +58,7 @@ parser.add_argument("-u", "--output-suffix",
 
 DEFAULT_OUTPUT_SUFFIX = "smashed"
 DEFAULT_INPUT_SUFFIX = ".jpg"
+DEFAULT_LATEST = "LAST_CRASH.jpg"
 
 
 def main():
@@ -70,21 +74,49 @@ def main():
         
 
 def auto_run(args):
-    pass
+    input_suffix = args.search_suffix or DEFAULT_INPUT_SUFFIX
+    input_dir = args.working_dir or os.getcwd()
+    output_suffix = args.output_suffix or DEFAULT_OUTPUT_SUFFIX
+    input_files = gen_new_files(input_dir, input_suffix)
+    try:
+        _auto_run_loop(output_suffix, input_files, args)
+    except KeyboardInterrupt:
+        print("User quit with SIGINT")
+
+
+def _auto_run_loop(suffix, input_files, args):
+    for input_file in input_files:
+        input_name, input_ext = input_file.split(".")
+        output_file = "{0}_{1}.{2}".format(input_name, suffix, input_ext)
+        run(input_file, output_file, args)
+
+
+def gen_new_files(search_dir, search_suffix):
+    search_str = "*{0}".format(search_suffix)
+    search_dir = os.path.join(search_dir, search_str)
+    print("Polling for new files in {0}".format(search_dir))
+    old_files = set(glob.glob(search_dir))
+    print("Initial files ignored: {0}".format(list(old_files)))
+    while True:
+        time.sleep(0.1)
+        current_files = set(glob.glob(search_dir))
+        new_files = current_files - old_files
+        for new_file in new_files:
+            print("Found new file: {0}".format(new_file))
+            yield new_file
+        old_files = set(glob.glob(search_dir))
+         
 
 
 def run_once(args):
     run(args.target, args.outfile, args)
 
 
-def gen_new_files(directory):
-    initial_glob = glob.glob(os.path.join(directory, "*.jpg")
-
-
 def run(target_file, output_file, args):
     img = imread.imread(target_file)
     process_img(img, args)
     save_img(img, output_file)
+    save_img(img, DEFAULT_LATEST)
     
  
 
