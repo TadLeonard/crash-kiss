@@ -140,32 +140,27 @@ def center_smash(img, fg, bounds):
 
     def smash2(irow, frow, ls, rs):
         offs = rs - ls
-        dist = rs + ls 
-        extra = side_len - dist
-        lextra = extra // 2  # TRUNCATION less on left
-        rextra = extra - lextra
-        start = - ls - lextra + offs
-        mid = start + max_depth
-        stop = start + side_len
-        bmaskl = frow[fg_mid - start: mid]
-        bmaskr = frow[mid: fg_mid + stop]
-        llen = np.count_nonzero(bmaskl)
-        rlen = np.count_nonzero(bmaskr)
-        lsquash = len(bmaskl) - llen
-        rsquash = len(bmaskr) - rlen
-        lsubj = irow[center - start: mid][bmaskl].copy()
-        rsubj = irow[mid: center + stop][bmaskr].copy()
-        irow[lsquash: center - start + lsquash] = irow[:center - start]
-        try:
-            irow[center + stop - rsquash: -rsquash] = irow[center + stop:]
-        except:
-            print 'hey', ls, rs, lsquash, rsquash
-            irow[:] = BLACK
-            return lsquash, rsquash
-        irow[center - start + lsquash: center - start + lsquash + llen] = lsubj
-        print rlen
-        irow[center + stop - rsquash: center + stop - rsquash + rlen] = rsubj
-        return lsquash, rsquash
+        dist = rs + ls - 1
+        ledge_mov = dist // 2  # TRUNCATION less on left
+        redge_mov = dist - ledge_mov
+        fg_l_stop = fg_r_start = -ls + ledge_mov - 1
+        bg_mask = frow[fg_mid + fg_l_stop - max_depth: fg_mid + fg_r_start + max_depth]
+        l_bg_mask = bg_mask[:max_depth]
+        r_bg_mask = bg_mask[max_depth:]
+        llen = np.count_nonzero(l_bg_mask)
+        rlen = np.count_nonzero(r_bg_mask)
+        lsquash = len(l_bg_mask) - llen - ledge_mov
+        rsquash = len(r_bg_mask) - rlen - redge_mov
+        lmov = ledge_mov + lsquash
+        rmov = redge_mov + rsquash
+        subj = irow[center + fg_l_stop - max_depth: center + fg_r_start + max_depth]
+        subj = subj[bg_mask]
+        irow[center + fg_l_stop - llen: center + fg_r_start + rlen] = subj
+        l_shift_to = irow[lmov: center + fg_l_stop - llen]
+        l_shift_to[:] = irow[:center + fg_l_stop - llen - lmov] 
+        r_shift_to = irow[center + fg_r_start + rlen: -rmov]
+        r_shift_to[:] = irow[center + fg_r_start + rlen + rmov:]
+        return lmov, rmov
 
     def smash_asymmetrical(irow, frow, ls, rs):
         """Smash a row where one subject's in the inner quadrants
