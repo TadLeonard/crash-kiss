@@ -119,7 +119,6 @@ def run(target_file, output_file, args):
     save_img(img, DEFAULT_LATEST)
     
  
-
 def process_img(img, args):
     view, bounds = edge.get_foreground_area(img, args.max_depth)
     view = util.get_rgb_view(view, args.rgb_select)
