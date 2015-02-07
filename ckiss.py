@@ -65,8 +65,6 @@ DEFAULT_LATEST = "LAST_CRASH.jpg"
 
 def main():
     args = parser.parse_args()
-    if not args.auto_run and args.working_dir:
-        parser.error("-w doesn't make sense without -a")
     if args.auto_run:
         auto_run(args)
     else:
@@ -108,7 +106,19 @@ def gen_new_files(search_dir, search_suffix):
          
 
 def run_once(args):
-   run(args.target, out_file, args)
+    if args.outfile:
+        out_file = args.outfile
+    else:
+        out_dir = args.working_dir or os.getcwd()
+        suffix = args.output_suffix or DEFAULT_OUTPUT_SUFFIX
+        out_path = os.path.split(args.target)
+        out_name = out_path[-1]
+        out_dir = os.path.join(*out_path[:-1])
+        out_ext = out_name.split(".")[-1]              
+        out_name = "".join(out_name.split(".")[:-1])
+        out_name = "{0}_{1}.{2}".format(out_name, suffix, out_ext)
+        out_file = os.path.join(out_dir, out_name)
+    run(args.target, out_file, args)
 
 
 def run(target_file, output_file, args, save_latest=False):
