@@ -62,7 +62,6 @@ def simplify_background(background, config):
 _MID_FG = 0xFFFF
 
 
-
 def iter_smash(img, max_depth, stepsize=1):
     """Yield control to another function for each iteration of a smash.
     Each time the image is yeilded, the smash progresses by
@@ -77,7 +76,7 @@ def iter_smash(img, max_depth, stepsize=1):
                         bounds[1] - stepsize,
                         bounds[2] - stepsize)
         center_smash(img, fg, bounds)
-        yield img
+        yield img, step
 
 
 def center_smash(img, fg, bounds):

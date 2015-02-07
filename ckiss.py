@@ -56,9 +56,9 @@ parser.add_argument("-u", "--output-suffix",
                     help="specify the file name suffix for produced images "
                          "in --auto-run mode or in normal mode when no "
                          "output file is specified")
-parser.add_argument("--sequence", action="store_true",
+parser.add_argument("--sequence", type=int, default=0,
                     help="create a sequence of crash kisses from 0 to "
-                         "--max-depth")
+                         "--max-depth in steps of SEQUENCE size")
 
 
 DEFAULT_OUTPUT_SUFFIX = "smashed"
@@ -70,6 +70,8 @@ def main():
     args = parser.parse_args()
     if args.auto_run:
         auto_run(args)
+    elif args.sequence:
+        make_sequence(args)
     else:
         run_once(args)
         
@@ -88,7 +90,10 @@ def auto_run(args):
 def _auto_run_loop(suffix, input_files, args):
     for input_file in input_files:
         input_name, input_ext = input_file.split(".")
-        output_file = "{0}_{1}.{2}".format(input_name, suffix, input_ext)
+        loc, name, suffix, ext = _get_filename_hints(
+            input_file, args.working_dir, args.output_suffix)
+        output_file = "{0}_{1}.{2}".format(name, suffix, ext)
+        output_file = os.path.join(loc, output_file)
         run(input_file, output_file, args, save_latest=True)
 
 
@@ -108,20 +113,37 @@ def gen_new_files(search_dir, search_suffix):
         old_files = set(glob.glob(search_dir))
          
 
+def make_sequence(args):
+    target = args.target
+    max_depth = args.max_depth
+    stepsize = args.sequence
+    img = imread.imread(target)
+    view = util.get_rgb_view(img, args.rgb_select)
+    for img, step in edge.iter_smash(target, max_depth, stepsize):
+        new_name = seq_name.format(step)
+        save_img(img, new_name)
+
+
 def run_once(args):
     if args.outfile:
         out_file = args.outfile
     else:
-        suffix = args.output_suffix or DEFAULT_OUTPUT_SUFFIX
-        out_path = os.path.split(args.target)
-        out_name = out_path[-1]
-        out_dir = args.working_dir or os.path.join(*out_path[:-1])
-        out_ext = out_name.split(".")[-1]              
-        out_name = "".join(out_name.split(".")[:-1])
-        out_name = "{0}_{1}.{2}".format(out_name, suffix, out_ext)
-        out_file = os.path.join(out_dir, out_name)
+        loc, name, suffix, ext = _get_filename_hints(
+            args.target, args.working_dir, args.output_suffix)
+        out_file = "{0}_{1}.{2}".format(name, suffix, ext)
+        out_file = os.path.join(loc, out_file)
     run(args.target, out_file, args)
 
+
+def _get_filename_hints(target, working_dir, out_suffix):
+    suffix = out_suffix or DEFAULT_OUTPUT_SUFFIX
+    out_path = os.path.split(target)
+    out_name = out_path[-1]
+    out_dir = working_dir or os.path.join(*out_path[:-1])
+    out_ext = out_name.split(".")[-1]              
+    out_name = "".join(out_name.split(".")[:-1])
+    return out_dir, out_name, suffix, out_ext
+   
 
 def run(target_file, output_file, args, save_latest=False):
     img = imread.imread(target_file)
