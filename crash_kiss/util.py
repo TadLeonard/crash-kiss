@@ -1,4 +1,5 @@
 from six.moves import zip
+import numpy as np
 
 
 def combine_images(imgs, horizontal=True):

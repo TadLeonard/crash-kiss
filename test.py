@@ -3,7 +3,7 @@ import itertools
 import imread
 import numpy as np
 import pytest
-from crash_kiss import outer_edge
+from crash_kiss import outer_edge, edge, util
 from crash_kiss.config import config
 
 
@@ -241,4 +241,20 @@ def test_bad_edge_config():
     with pytest.raises(Exception):
         config(fleshold=10)  # not okay
    
+
+### Test smashing two subjects towards the center
+
+
+def test_conservation_of_foreground():
+    """Ensure that `center_smash` doesn't overwrite pixels or somehow 
+    delete them when it smashes a simple image"""
+    img = util.combine_images([_get_test_img(), _get_test_img()])
+    view, bounds = edge.get_foreground_area(img, 50)
+    total_fg_area = edge.find_foreground(img, 255, 10)
+    total_fg_pixels = np.sum(total_fg_area)  
+    fg = edge.find_foreground(view, 255, 10)
+    edge.center_smash(img, fg, bounds)
+    total_fg_area_after = edge.find_foreground(img, 255, 10)
+    total_fg_pixels_after = np.sum(total_fg_area)  
+    assert total_fg_pixels_after == total_fg_pixels
 
