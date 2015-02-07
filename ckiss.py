@@ -47,13 +47,15 @@ parser.add_argument("-a", "--auto-run", action="store_true",
                          "the working directory")
 parser.add_argument("-w", "--working-dir",
                     help="specify the directory for newly processed images "
-                         "in --auto-run mode")
+                         "in --auto-run mode or in normal mode when no "
+                         "output file is specified")
 parser.add_argument("-W", "--search-suffix",
                     help="specify suffix to search for in working dir "
                          "in --auto-run mode (default is .jpg)")
 parser.add_argument("-u", "--output-suffix",
-                    help="specify the suffix for processed images "
-                         "in --auto-run mode")
+                    help="specify the file name suffix for produced images "
+                         "in --auto-run mode or in normal mode when no "
+                         "output file is specified")
 
 
 DEFAULT_OUTPUT_SUFFIX = "smashed"
@@ -63,9 +65,7 @@ DEFAULT_LATEST = "LAST_CRASH.jpg"
 
 def main():
     args = parser.parse_args()
-    if not args.auto_run and args.output_suffix:
-        parser.error("-u doesn't make sense without -a")
-    elif not args.auto_run and args.working_dir:
+    if not args.auto_run and args.working_dir:
         parser.error("-w doesn't make sense without -a")
     if args.auto_run:
         auto_run(args)
@@ -88,7 +88,7 @@ def _auto_run_loop(suffix, input_files, args):
     for input_file in input_files:
         input_name, input_ext = input_file.split(".")
         output_file = "{0}_{1}.{2}".format(input_name, suffix, input_ext)
-        run(input_file, output_file, args)
+        run(input_file, output_file, args, save_latest=True)
 
 
 def gen_new_files(search_dir, search_suffix):
@@ -107,16 +107,16 @@ def gen_new_files(search_dir, search_suffix):
         old_files = set(glob.glob(search_dir))
          
 
-
 def run_once(args):
-    run(args.target, args.outfile, args)
+   run(args.target, out_file, args)
 
 
-def run(target_file, output_file, args):
+def run(target_file, output_file, args, save_latest=False):
     img = imread.imread(target_file)
     process_img(img, args)
     save_img(img, output_file)
-    save_img(img, DEFAULT_LATEST)
+    if save_latest:
+        save_img(img, DEFAULT_LATEST)
     
  
 def process_img(img, args):
