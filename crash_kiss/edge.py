@@ -6,6 +6,7 @@ from collections import namedtuple
 import numpy as np
 from crash_kiss.config import BLACK, WHITE, FULL_DEPTH
 import crash_kiss.util as util
+from six.moves import range
 
 
 def find_foreground(img, background, threshold):
@@ -59,24 +60,36 @@ def simplify_background(background, config):
     return background
 
 
-_MID_FG = 0xFFFF
+# _MID_FG is a placeholder value for foreground data that is at the center
+# of the image. It's used to distinguish the fg-at-center case from
+# the no-fg-at-all case. This is because `np.argmax` returns 0 if the max
+# value is at index 0 (whether that max value is 0 or 1 or anything else!).
+_MID_FG = 0xFFFF  # placeholder index for foreground data at the center
+_params = "max_depth threshold background rgb_select"
+smash_params = namedtuple("smash", _params)
 
 
-def iter_smash(img, max_depth, stepsize=1):
+def iter_smash(img, params, stepsize=1):
     """Yield control to another function for each iteration of a smash.
-    Each time the image is yeilded, the smash progresses by
-    `stepsize` pixels."""
-    orig_img = img.copy()
-    total_fg, bounds = get_foreground_area(img, max_depth)
-    steps = range(max_depth, -stepsize, -stepsize)
-    for step in steps:
-        img = orig_img.copy()
-        fg = fg[stepsize: -stepsize]
-        bounds = bounds(bounds[0] - stepsize,
-                        bounds[1] - stepsize,
-                        bounds[2] - stepsize)
-        center_smash(img, fg, bounds)
-        yield img, step
+    Each time the image is yeilded, the smash progresses by `stepsize`"""
+    view, bounds = get_foreground_area(img, max_depth)
+    fg = find_foreground(
+    max_depth = fg.shape[1] // 4
+    total_fg = np.zeros(img.shape[:2])
+    total_fg[:, bounds.start, bounds.stop] = fg
+    
+    for depth in range(max_depth, 0, -stepsize):
+        working_img = img.copy()
+        print "HEY", step
+        print fg.shape, img.shape
+        print bounds
+        center_smash(working_img, fg, bounds)
+        yield working_img, step
+        fg = fg[:, stepsize: -stepsize]
+        bounds = _get_fg_bounds(img.shape, step)
+        bounds, fg = get_foreground_area(total_fg, depth)
+    
+    yield orig_img, 0
 
 
 def center_smash(img, fg, bounds):
@@ -179,7 +192,7 @@ def center_smash(img, fg, bounds):
     
 def get_foreground_area(img, max_depth):
     bounds = _get_fg_bounds(img.shape, max_depth)
-    return img[:, bounds.start:bounds.stop], bounds
+    return img[:, bounds.start: bounds.stop], bounds
 
 
 _fg_bounds = namedtuple("fg_bounds", "start stop fg_mid")
