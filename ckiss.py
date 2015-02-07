@@ -56,6 +56,9 @@ parser.add_argument("-u", "--output-suffix",
                     help="specify the file name suffix for produced images "
                          "in --auto-run mode or in normal mode when no "
                          "output file is specified")
+parser.add_argument("--sequence", action="store_true",
+                    help="create a sequence of crash kisses from 0 to "
+                         "--max-depth")
 
 
 DEFAULT_OUTPUT_SUFFIX = "smashed"
