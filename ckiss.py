@@ -119,9 +119,15 @@ def make_sequence(args):
     stepsize = args.sequence
     img = imread.imread(target)
     view = util.get_rgb_view(img, args.rgb_select)
-    for img, step in edge.iter_smash(target, max_depth, stepsize):
-        new_name = seq_name.format(step)
-        save_img(img, new_name)
+    loc, name, suffix, ext = _get_filename_hints(
+        args.target, args.working_dir, args.output_suffix)
+    template = os.path.join(loc, "{0}_{1}_{2:04d}.{3}")
+    fg_area, bounds = edge.get_foreground_area(img, args.max_depth)
+    fg = edge.find_foreground(fg_area, args.bg_value, args.threshold)
+    image_steps = edge.iter_smash(img, fg, bounds, stepsize)
+    for img, step in image_steps:
+        new_file = template.format(name, suffix, step, ext)
+        save_img(img, new_file)
 
 
 def run_once(args):
@@ -153,7 +159,7 @@ def run(target_file, output_file, args, save_latest=False):
         save_img(img, DEFAULT_LATEST)
     
  
-def process_img(img, args):
+def process_img(img, params, actions):
     view, bounds = edge.get_foreground_area(img, args.max_depth)
     view = util.get_rgb_view(view, args.rgb_select)
     fg = edge.find_foreground(view, args.bg_value, args.threshold)
