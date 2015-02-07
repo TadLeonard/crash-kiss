@@ -109,11 +109,10 @@ def run_once(args):
     if args.outfile:
         out_file = args.outfile
     else:
-        out_dir = args.working_dir or os.getcwd()
         suffix = args.output_suffix or DEFAULT_OUTPUT_SUFFIX
         out_path = os.path.split(args.target)
         out_name = out_path[-1]
-        out_dir = os.path.join(*out_path[:-1])
+        out_dir = args.working_dir or os.path.join(*out_path[:-1])
         out_ext = out_name.split(".")[-1]              
         out_name = "".join(out_name.split(".")[:-1])
         out_name = "{0}_{1}.{2}".format(out_name, suffix, out_ext)
