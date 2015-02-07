@@ -84,26 +84,6 @@ def center_smash(img, fg, bounds):
     rstart = np.argmax(rfg, axis=1)
     rstart[rfg[:, 0] == 1] = _MID_FG
 
-    def mov_to_center(irow, frow):
-        """Smash a row whose foreground intersect the center line"""
-        lextra = frow[:fg_mid][::-1].argmin()
-        rextra = frow[fg_mid:].argmin()    
-        lidx = start + max_depth - lextra
-        lidx_fg = max_depth - lextra
-        lsubj = irow[lidx: center][frow[lidx_fg: fg_mid]].copy()
-        ridx = center + max_depth + rextra
-        ridx_fg = fg_mid + max_depth + rextra
-        rsubj = irow[center: ridx][frow[fg_mid: ridx_fg]].copy()
-        llen = len(lsubj)
-        rlen = len(rsubj)
-        lmov = max_depth + lextra - llen
-        rmov = max_depth + rextra - rlen
-        irow[lmov: center] = irow[:center - lmov]
-        irow[center - llen: center] = lsubj
-        irow[center: -rmov] = irow[center + rmov:]
-        irow[center: center + rlen] = rsubj
-        return lmov, rmov
-
     def mov_empty_fg(irow):
         """Smash a row with an empty foreground area"""
         irow[center + rmov: -rmov] = irow[stop:]
@@ -174,10 +154,8 @@ def center_smash(img, fg, bounds):
             lmov, rmov = smash(irow, frow, ls, rs)
         elif rs + ls <= side_len:
             lmov, rmov = smash(irow, frow, ls, rs)
-        elif (ls < max_depth) or (rs < max_depth):
-            mov_near_collision(irow, frow, ls, rs)
         else:
-            mov_no_collision(irow, frow)
+            mov_near_collision(irow, frow, ls, rs)
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
 
