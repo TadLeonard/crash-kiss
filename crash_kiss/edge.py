@@ -62,6 +62,24 @@ def simplify_background(background, config):
 _MID_FG = 0xFFFF
 
 
+
+def iter_smash(img, max_depth, stepsize=1):
+    """Yield control to another function for each iteration of a smash.
+    Each time the image is yeilded, the smash progresses by
+    `stepsize` pixels."""
+    orig_img = img.copy()
+    total_fg, bounds = get_foreground_area(img, max_depth)
+    steps = range(max_depth, -stepsize, -stepsize)
+    for step in steps:
+        img = orig_img.copy()
+        fg = fg[stepsize: -stepsize]
+        bounds = bounds(bounds[0] - stepsize,
+                        bounds[1] - stepsize,
+                        bounds[2] - stepsize)
+        center_smash(img, fg, bounds)
+        yield img
+
+
 def center_smash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
