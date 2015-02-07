@@ -122,9 +122,9 @@ def make_sequence(args):
     loc, name, suffix, ext = _get_filename_hints(
         args.target, args.working_dir, args.output_suffix)
     template = os.path.join(loc, "{0}_{1}_{2:04d}.{3}")
-    fg_area, bounds = edge.get_foreground_area(img, args.max_depth)
-    fg = edge.find_foreground(fg_area, args.bg_value, args.threshold)
-    image_steps = edge.iter_smash(img, fg, bounds, stepsize)
+    params = edge.smash_params(
+        args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
+    image_steps = edge.iter_smash(img, params, stepsize)
     for img, step in image_steps:
         new_file = template.format(name, suffix, step, ext)
         save_img(img, new_file)

@@ -1,8 +1,10 @@
 """Functions for finding the foreground in an image with a clean
 background (i.e. mostly white or black)"""
 
-from __future__ import division
+from __future__ import division, print_function
 from collections import namedtuple
+import sys
+import time
 import numpy as np
 from crash_kiss.config import BLACK, WHITE, FULL_DEPTH
 import crash_kiss.util as util
@@ -77,26 +79,28 @@ def iter_smash(img, params, stepsize=1):
     Each time the image is yeilded, the smash progresses by `stepsize`"""
     fg, bounds = find_foreground(img, params)  # initial bground mask, bounds
     max_depth = params.max_depth
+    yield center_smash(img.copy(), fg, bounds), max_depth  # deepest smash
 
     # We'll create a background mask (i.e. the foreground selection) with
     # the same shape as the image. This lets us calculate the entire 
     # foreground just once and slice it down to size for each iteration
     # of the smash. This saves lots of CPU cycles.
-    total_fg = np.zeros(img.shape[:2])  # 2D mask with same dims as img
-    total_fg[:, bounds.start, bounds.stop] = fg
+    total_fg = np.zeros(
+        shape=img.shape[:2], dtype=bool)  # 2D mask with same dims as img
+    total_fg[:, bounds.start: bounds.stop] = fg
     
-    for depth in range(max_depth, 0, -stepsize):
-        working_img = img.copy()
-        print "HEY", step
-        print fg.shape, img.shape
-        print bounds
-        center_smash(working_img, fg, bounds)
-        yield working_img, step
-        fg = fg[:, stepsize: -stepsize]
-        bounds = _get_fg_bounds(img.shape, step)
-        bounds, fg = get_foreground_area(total_fg, depth)
-    
-    yield orig_img, 0
+    print("Processing...")
+    start = time.time()
+    depths = range(max_depth - stepsize, 0, -stepsize)
+    for depth in depths:
+        fg, bounds = get_foreground_area(total_fg, depth)
+        smashed_img = center_smash(img.copy(), fg, bounds)
+        yield smashed_img, depth
+        print("Depth: {0:04d}\r".format(depth), end="")
+        sys.stdout.flush()
+    yield img, 0  # shallowest smash (just the original image)
+    print("{0} images in {1:0.1f} seconds".format(
+          len(depths), time.time() - start))
 
 
 def center_smash(img, fg, bounds):
@@ -195,6 +199,7 @@ def center_smash(img, fg, bounds):
             mov_near_collision(irow, frow, ls, rs)
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
+    return img
 
     
 def get_foreground_area(img, max_depth):
