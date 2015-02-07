@@ -9,22 +9,25 @@ import crash_kiss.util as util
 from six.moves import range
 
 
-def find_foreground(img, background, threshold):
+def find_foreground(img, params):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
     to a simple int or float, we'll try to avoid calling `np.abs`
     by checking to see if the background value is near 0 or 255."""
-    if len(img.shape) == 2:
-        return _compare_pixels(img, background, threshold)
-    rgb_views = [img[:, :, idx] for idx in range(img.shape[-1])]
+    view, bounds = get_foreground_area(img, params.max_depth)
+    view = util.get_rgb_view(view, params.rgb_select)
+    if len(view.shape) == 2:
+        return _compare_pixels(view, params.background, params.threshold)
+    rgb_views = [view[:, :, idx] for idx in range(view.shape[-1])]
     
     # the foreground is a 2D array where 1==foreground 0==background
-    fg = _compare_pixels(rgb_views[0], background, threshold)
-    for view in rgb_views[1:]:
+    fg = _compare_pixels(rgb_views[0], params.background, params.threshold)
+    for rgb_view in rgb_views[1:]:
         bg = fg == 0
-        new_data = _compare_pixels(view[bg], background, threshold)
+        new_data = _compare_pixels(
+            rgb_view[bg], params.background, params.threshold)
         fg[bg] = new_data
-    return fg
+    return fg, bounds
 
 
 def _compare_pixels(img, background, threshold):
@@ -72,10 +75,14 @@ smash_params = namedtuple("smash", _params)
 def iter_smash(img, params, stepsize=1):
     """Yield control to another function for each iteration of a smash.
     Each time the image is yeilded, the smash progresses by `stepsize`"""
-    view, bounds = get_foreground_area(img, max_depth)
-    fg = find_foreground(
-    max_depth = fg.shape[1] // 4
-    total_fg = np.zeros(img.shape[:2])
+    fg, bounds = find_foreground(img, params)  # initial bground mask, bounds
+    max_depth = params.max_depth
+
+    # We'll create a background mask (i.e. the foreground selection) with
+    # the same shape as the image. This lets us calculate the entire 
+    # foreground just once and slice it down to size for each iteration
+    # of the smash. This saves lots of CPU cycles.
+    total_fg = np.zeros(img.shape[:2])  # 2D mask with same dims as img
     total_fg[:, bounds.start, bounds.stop] = fg
     
     for depth in range(max_depth, 0, -stepsize):

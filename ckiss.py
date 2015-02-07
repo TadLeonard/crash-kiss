@@ -157,12 +157,12 @@ def run(target_file, output_file, args, save_latest=False):
     save_img(img, output_file)
     if save_latest:
         save_img(img, DEFAULT_LATEST)
-    
- 
-def process_img(img, params, actions):
-    view, bounds = edge.get_foreground_area(img, args.max_depth)
-    view = util.get_rgb_view(view, args.rgb_select)
-    fg = edge.find_foreground(view, args.bg_value, args.threshold)
+
+
+def process_img(img, args):
+    params = edge.smash_params(
+        args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
+    fg, bounds = edge.find_foreground(img, params)
      
     # Various things to do with the result of our image mutations
     if args.reveal_foreground:
