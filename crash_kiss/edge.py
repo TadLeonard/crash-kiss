@@ -1,29 +1,37 @@
 """Functions for finding the foreground in an image with a clean
 background (i.e. mostly white or black)"""
 
-from __future__ import division
+from __future__ import division, print_function
 from collections import namedtuple
-import numpy as np
+import os
+import sys
+import time
 from crash_kiss.config import BLACK, WHITE, FULL_DEPTH
 import crash_kiss.util as util
+import imread
+import numpy as np
+from six.moves import range
 
 
-def find_foreground(img, background, threshold):
+def find_foreground(img, params):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
     to a simple int or float, we'll try to avoid calling `np.abs`
     by checking to see if the background value is near 0 or 255."""
-    if len(img.shape) == 2:
-        return _compare_pixels(img, background, threshold)
-    rgb_views = [img[:, :, idx] for idx in range(img.shape[-1])]
+    view, bounds = get_foreground_area(img, params.max_depth)
+    view = util.get_rgb_view(view, params.rgb_select)
+    if len(view.shape) == 2:
+        return _compare_pixels(view, params.background, params.threshold)
+    rgb_views = [view[:, :, idx] for idx in range(view.shape[-1])]
     
     # the foreground is a 2D array where 1==foreground 0==background
-    fg = _compare_pixels(rgb_views[0], background, threshold)
-    for view in rgb_views[1:]:
+    fg = _compare_pixels(rgb_views[0], params.background, params.threshold)
+    for rgb_view in rgb_views[1:]:
         bg = fg == 0
-        new_data = _compare_pixels(view[bg], background, threshold)
+        new_data = _compare_pixels(
+            rgb_view[bg], params.background, params.threshold)
         fg[bg] = new_data
-    return fg
+    return fg, bounds
 
 
 def _compare_pixels(img, background, threshold):
@@ -59,7 +67,81 @@ def simplify_background(background, config):
     return background
 
 
-_MID_FG = 0xFFFF
+# _MID_FG is a placeholder value for foreground data that is at the center
+# of the image. It's used to distinguish the fg-at-center case from
+# the no-fg-at-all case. This is because `np.argmax` returns 0 if the max
+# value is at index 0 (whether that max value is 0 or 1 or anything else!).
+_MID_FG = 0xFFFF  # placeholder index for foreground data at the center
+_params = "max_depth threshold background rgb_select".split()
+
+
+class SmashParams(object):
+
+    def __init__(self, *args):
+        self.__dict__.update(zip(_params, args))
+
+
+#def make_smash_params(*args):
+#    return dict(zip(_params, args))
+
+
+def iter_smash(img, params, stepsize=1):
+    """Yield control to another function for each iteration of a smash.
+    Each time the image is yeilded, the smash progresses by `stepsize`"""
+    start = time.time()
+    fg, bounds = find_foreground(img, params)  # initial bground mask, bounds
+    max_depth = params.max_depth
+    yield center_smash(img.copy(), fg, bounds), max_depth  # deepest smash
+
+    # We'll create a background mask (i.e. the foreground selection) with
+    # the same shape as the image. This lets us calculate the entire 
+    # foreground just once and slice it down to size for each iteration
+    # of the smash. This saves lots of CPU cycles.
+    total_fg = np.zeros(
+        shape=img.shape[:2], dtype=bool)  # 2D mask with same dims as img
+    total_fg[:, bounds.start: bounds.stop] = fg
+    
+    print("Processing...")
+    depths = range(max_depth - stepsize, 0, -stepsize)
+    for depth in depths:
+        yield _smash_at_depth(img, total_fg, depth), depth
+        print("Depth: {0:04d}\r".format(depth), end="")
+        sys.stdout.flush()
+    yield img, 0  # shallowest smash (just the original image)
+    print("{0} images in {1:0.1f} seconds".format(
+          len(depths) + 2, time.time() - start))
+
+
+def _smash_at_depth(img, total_fg, depth):
+    fg, bounds = get_foreground_area(total_fg, depth)
+    smashed_img = center_smash(img.copy(), fg, bounds)
+    return smashed_img
+
+
+def parallel_smash(target, params, template, depths):
+    start = time.time()
+    img = imread.imread(target)
+    fg, bounds = find_foreground(img, params)  # initial bground mask, bounds
+    max_depth = depths[0]
+    first_img = center_smash(img.copy(), fg, bounds)
+    util.save_img(template.format(max_depth), first_img)
+
+    # We'll create a background mask (i.e. the foreground selection) with
+    # the same shape as the image. This lets us calculate the entire 
+    # foreground just once and slice it down to size for each iteration
+    # of the smash. This saves lots of CPU cycles.
+    total_fg = np.zeros(
+        shape=img.shape[:2], dtype=bool)  # 2D mask with same dims as img
+    total_fg[:, bounds.start: bounds.stop] = fg
+    for depth in depths[1:]:
+        if depth == 0:
+            smashed = img
+        else:
+            smashed = _smash_at_depth(img, total_fg, depth)
+        util.save_img(template.format(depth), smashed)
+        
+    print("Worker process smashed {0} images in {1:0.1f} seconds".format(
+          len(depths), time.time() - start))
 
 
 def center_smash(img, fg, bounds):
@@ -70,11 +152,18 @@ def center_smash(img, fg, bounds):
     max_depth = fg.shape[1] // 4
     fg_l = fg_mid - max_depth
     fg_r = fg_mid + max_depth
-    rlen = img.shape[1] - stop
     mid_left = start + max_depth
-    center = start + 2*max_depth
+    center = start +  2 * max_depth
     mid_right = center + max_depth
     side_len = fg.shape[1] // 2
+    _smash_data = namedtuple("sdata", "start stop fg_mid "
+                                      "max_depth fg_l fg_r "
+                                      "mid_left center mid_right "
+                                      "side_len")
+    smash_data = _smash_data(start, stop, fg_mid, max_depth, fg_l,
+                             fg_r, mid_left, center, mid_right,
+                             side_len)
+    #smash_data = locals()
 
     lfg = fg[:, :bounds.fg_mid]
     lfg = util.invert_horizontal(lfg)
@@ -84,85 +173,105 @@ def center_smash(img, fg, bounds):
     rstart = np.argmax(rfg, axis=1)
     rstart[rfg[:, 0] == 1] = _MID_FG
 
-    def mov_empty_fg(irow):
-        """Smash a row with an empty foreground area"""
-        irow[center + rmov: -rmov] = irow[stop:]
-        irow[lmov: start+lmov] = irow[:start]
-
-    def mov_no_collision(irow, frow):
-        """Smash a row whose foreground area will not touch"""
-        irow[center: -max_depth] = irow[center + max_depth:]
-        irow[max_depth: center] = irow[:start + max_depth]
-
-    def mov_left_overshoot(irow, frow, ls):
-        """Smash a row where the left side overshoots the center line"""
-        irow[mid_right: -max_depth] = irow[stop:]  # no RHS FG
-        irow[max_depth: mid_right] = irow[:center] 
-
-    def mov_right_overshoot(irow, frow, rs):
-        """Smash a row where the right side overshoots the center line"""
-        irow[max_depth: mid_left] = irow[:start]  # no LHS FG
-        irow[mid_left: -max_depth] = irow[center:]
-
-    def smash(irow, frow, ls, rs):
-        lextra = rextra = 0
-        if ls == _MID_FG or rs == _MID_FG:
-            if ls != _MID_FG or rs != _MID_FG:
-                ls = rs = 0
-            if ls == _MID_FG:
-                lextra = frow[:fg_mid][::-1].argmin()
-            if rs == _MID_FG:
-                rextra = frow[fg_mid:].argmin()    
-        offs = rs - ls
-        dist = rs + ls - 1
-        ledge_mov = dist // 2  # TRUNCATION less on left
-        redge_mov = dist - ledge_mov
-        fg_l_stop = fg_r_start = -ls + ledge_mov - 1
-        bg_mask = frow[fg_mid + fg_l_stop - max_depth: fg_mid + fg_r_start + max_depth]
-        l_bg_mask = bg_mask[:max_depth]
-        r_bg_mask = bg_mask[max_depth:]
-        llen = np.count_nonzero(l_bg_mask)
-        rlen = np.count_nonzero(r_bg_mask)
-        lsquash = len(l_bg_mask) - llen - ledge_mov
-        rsquash = len(r_bg_mask) - rlen - redge_mov
-        lmov = ledge_mov + lsquash + lextra
-        rmov = redge_mov + rsquash + rextra
-        subj = irow[center + fg_l_stop - max_depth: center + fg_r_start + max_depth]
-        subj = subj[bg_mask]
-        irow[center + fg_l_stop - llen: center + fg_r_start + rlen] = subj
-        irow[lmov: center + fg_l_stop - llen] = (
-            irow[:center + fg_l_stop - llen - lmov])
-        irow[center + fg_r_start + rlen: -rmov] = (
-            irow[center + fg_r_start + rlen + rmov:])
-        return lmov, rmov
-
-    def mov_near_collision(irow, frow, ls, rs):
-        irow[lmov: center - ls + lmov] = irow[: center - ls]
-        irow[center + rs - rmov: -rmov] = irow[center + rs:]
-
-    for irow, ls, rs, frow in zip(img, lstart, rstart, fg):
+    _row_data = namedtuple("row", "irow ls rs frow")
+    for row_data in zip(img, lstart, rstart, fg):
+        irow, ls, rs, frow = row_data
+        row_data = _row_data(*row_data)
         lmov = rmov = max_depth
         if not ls and not rs:
-            mov_empty_fg(irow)
+            mov_empty_fg(smash_data, row_data)
         elif ls and not rs:
-            mov_left_overshoot(irow, frow, ls)
+            mov_left_overshoot(smash_data, row_data)
         elif rs and not ls:
-            mov_right_overshoot(irow, frow, rs)
+            mov_right_overshoot(smash_data, row_data)
         elif rs == _MID_FG or ls == _MID_FG:
-            lmov, rmov = smash(irow, frow, rs, ls)
+            lmov, rmov = smash(smash_data, row_data)
         elif (rs < max_depth) and (ls < max_depth):
-            lmov, rmov = smash(irow, frow, ls, rs)
+            lmov, rmov = smash(smash_data, row_data)
         elif rs + ls <= side_len:
-            lmov, rmov = smash(irow, frow, ls, rs)
+            lmov, rmov = smash(smash_data, row_data)
         else:
-            mov_near_collision(irow, frow, ls, rs)
+            mov_near_collision(smash_data, row_data)
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
+    return img
+
+
+def mov_empty_fg(smash, row):
+    """Smash a row with an empty foreground area"""
+    irow, ls, rs = row[:-1]
+    depth = smash.max_depth
+    center = smash.center
+    irow[smash.mid_right: -depth] = irow[smash.stop:]
+    irow[depth: smash.mid_left] = irow[:smash.start]
+
+
+def mov_left_overshoot(smash, row):
+    """Smash a row where the left side overshoots the center line"""
+    irow = row.irow
+    depth = smash.max_depth
+    irow[depth: smash.mid_right] = irow[:smash.center] 
+    irow[smash.mid_right: -depth] = irow[smash.stop:]  # no RHS FG
+
+
+def mov_right_overshoot(smash, row):
+    """Smash a row where the right side overshoots the center line"""
+    irow = row.irow
+    depth = smash.max_depth
+    irow[depth: smash.mid_left] = irow[:smash.start]  # no LHS FG
+    irow[smash.mid_left: -depth] = irow[smash.center:]
+
+
+def smash(smash, row):
+    fg_mid = smash.fg_mid
+    center = smash.center
+    max_depth = smash.max_depth
+    ls, rs = row.ls, row.rs
+    frow, irow = row.frow, row.irow
+    lextra = rextra = 0
+    if ls == _MID_FG or rs == _MID_FG:
+        if ls != _MID_FG or rs != _MID_FG:
+            ls = rs = 0
+        if ls == _MID_FG:
+            lextra = frow[:fg_mid][::-1].argmin()
+        if rs == _MID_FG:
+            rextra = frow[fg_mid:].argmin()    
+    offs = rs - ls
+    dist = rs + ls - 1
+    ledge_mov = dist // 2  # TRUNCATION less on left
+    redge_mov = dist - ledge_mov
+    fg_l_stop = fg_r_start = -ls + ledge_mov - 1
+    bg_mask = frow[fg_mid + fg_l_stop - max_depth: fg_mid + fg_r_start + max_depth]
+    l_bg_mask = bg_mask[:max_depth]
+    r_bg_mask = bg_mask[max_depth:]
+    llen = np.count_nonzero(l_bg_mask)
+    rlen = np.count_nonzero(r_bg_mask)
+    lsquash = len(l_bg_mask) - llen - ledge_mov
+    rsquash = len(r_bg_mask) - rlen - redge_mov
+    lmov = ledge_mov + lsquash + lextra
+    rmov = redge_mov + rsquash + rextra
+    subj = irow[center + fg_l_stop - max_depth: center + fg_r_start + max_depth]
+    subj = subj[bg_mask]
+    irow[center + fg_l_stop - llen: center + fg_r_start + rlen] = subj
+    irow[lmov: center + fg_l_stop - llen] = (
+        irow[:center + fg_l_stop - llen - lmov])
+    irow[center + fg_r_start + rlen: -rmov] = (
+        irow[center + fg_r_start + rlen + rmov:])
+    return lmov, rmov
+
+
+def mov_near_collision(smash, row):
+    depth = smash.max_depth
+    center = smash.center
+    irow = row.irow
+    ls, rs = row.ls, row.rs
+    irow[depth: center - ls + depth] = irow[: center - ls]
+    irow[center + rs - depth: -depth] = irow[center + rs:]
 
     
 def get_foreground_area(img, max_depth):
     bounds = _get_fg_bounds(img.shape, max_depth)
-    return img[:, bounds.start:bounds.stop], bounds
+    return img[:, bounds.start: bounds.stop], bounds
 
 
 _fg_bounds = namedtuple("fg_bounds", "start stop fg_mid")

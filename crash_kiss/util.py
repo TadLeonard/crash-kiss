@@ -1,5 +1,11 @@
+import imread
 from six.moves import zip
 import numpy as np
+
+
+def save_img(file_name, img):
+    opts = {"quality": 100}  # max JPEG quality
+    imread.imwrite(file_name, img, opts=opts)
 
 
 def combine_images(imgs, horizontal=True):

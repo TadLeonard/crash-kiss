@@ -6,6 +6,8 @@ Smashes the things on the left and right side of an image towards the center
 import argparse
 import os
 import glob
+import multiprocessing
+import pprint
 import time
 from crash_kiss import edge, config, util
 import imread
@@ -47,13 +49,22 @@ parser.add_argument("-a", "--auto-run", action="store_true",
                          "the working directory")
 parser.add_argument("-w", "--working-dir",
                     help="specify the directory for newly processed images "
-                         "in --auto-run mode")
+                         "in --auto-run mode or in normal mode when no "
+                         "output file is specified")
 parser.add_argument("-W", "--search-suffix",
                     help="specify suffix to search for in working dir "
                          "in --auto-run mode (default is .jpg)")
 parser.add_argument("-u", "--output-suffix",
-                    help="specify the suffix for processed images "
-                         "in --auto-run mode")
+                    help="specify the file name suffix for produced images "
+                         "in --auto-run mode or in normal mode when no "
+                         "output file is specified")
+parser.add_argument("--sequence", type=int, default=0,
+                    help="create a sequence of crash kisses from 0 to "
+                         "--max-depth in steps of SEQUENCE size")
+parser.add_argument("--in-parallel", type=int,
+                    default=multiprocessing.cpu_count(),
+                    help="generate a sequence of smashed image "
+                         "in parallel across N processes")
 
 
 DEFAULT_OUTPUT_SUFFIX = "smashed"
@@ -63,12 +74,13 @@ DEFAULT_LATEST = "LAST_CRASH.jpg"
 
 def main():
     args = parser.parse_args()
-    if not args.auto_run and args.output_suffix:
-        parser.error("-u doesn't make sense without -a")
-    elif not args.auto_run and args.working_dir:
-        parser.error("-w doesn't make sense without -a")
     if args.auto_run:
         auto_run(args)
+    elif args.sequence:
+        if args.in_parallel == 1:
+            make_sequence(args)
+        else:
+            make_sequence_parallel(args)
     else:
         run_once(args)
         
@@ -87,8 +99,11 @@ def auto_run(args):
 def _auto_run_loop(suffix, input_files, args):
     for input_file in input_files:
         input_name, input_ext = input_file.split(".")
-        output_file = "{0}_{1}.{2}".format(input_name, suffix, input_ext)
-        run(input_file, output_file, args)
+        loc, name, suffix, ext = _get_filename_hints(
+            input_file, args.working_dir, args.output_suffix)
+        output_file = "{0}_{1}.{2}".format(name, suffix, ext)
+        output_file = os.path.join(loc, output_file)
+        run(input_file, output_file, args, save_latest=True)
 
 
 def gen_new_files(search_dir, search_suffix):
@@ -107,22 +122,97 @@ def gen_new_files(search_dir, search_suffix):
         old_files = set(glob.glob(search_dir))
          
 
+def make_sequence(args):
+    target = args.target
+    max_depth = args.max_depth
+    stepsize = args.sequence
+    img = imread.imread(target)
+    view = util.get_rgb_view(img, args.rgb_select)
+    loc, name, suffix, ext = _get_filename_hints(
+        args.target, args.working_dir, args.output_suffix)
+    template = os.path.join(loc, "{0}_{1}_{2:04d}.{3}")
+    params = edge.SmashParams(
+        args.max_depth, args.threshold, args.bg_value, args.rgb_select)
+   
+    image_steps = edge.iter_smash(img, params, stepsize)
+    for img, step in image_steps:
+        new_file = template.format(name, suffix, step, ext)
+        util.save_img(new_file, img)
+
+
+def make_sequence_parallel(args):
+    target = args.target
+    max_depth = args.max_depth
+    stepsize = args.sequence
+    loc, name, suffix, ext = _get_filename_hints(
+        args.target, args.working_dir, args.output_suffix)
+    tail = "{0}_{1}_{2}.{3}".format(name, suffix, "{0:04d}", ext)
+    template = os.path.join(loc, tail)
+    params = edge.SmashParams(
+        args.max_depth, args.threshold, args.bg_value, args.rgb_select)
+    depths = range(max_depth, -stepsize, -stepsize)
+    n_procs = args.in_parallel
+    pool = multiprocessing.Pool(n_procs)
+    start = time.time()
+    depth_chunks = list(_chunks(depths, n_procs))
+    task_chunks = [(target, params, template, d_chunk)
+                   for d_chunk in depth_chunks]
+    pool.map(run_parallel_smash, task_chunks)
+    print("Smashed {0} images in {1:0.1f} seconds".format(
+          len(depths), time.time() - start))
+
+
+def run_parallel_smash(args):
+    edge.parallel_smash(*args)
+
+
+def _chunks(things, n_chunks):
+    n_things = len(things)
+    chunksize = max(n_things // n_chunks, 1)
+    stop = 0
+    remainder = n_things % n_chunks
+    while stop < n_things:
+        start = stop
+        stop += chunksize
+        if (n_things - stop) < chunksize:
+            stop = n_things
+        chunk = things[start: stop]
+        yield things[start: stop]
+
 
 def run_once(args):
-    run(args.target, args.outfile, args)
+    if args.outfile:
+        out_file = args.outfile
+    else:
+        loc, name, suffix, ext = _get_filename_hints(
+            args.target, args.working_dir, args.output_suffix)
+        out_file = "{0}_{1}.{2}".format(name, suffix, ext)
+        out_file = os.path.join(loc, out_file)
+    run(args.target, out_file, args)
 
 
-def run(target_file, output_file, args):
+def _get_filename_hints(target, working_dir, out_suffix):
+    suffix = out_suffix or DEFAULT_OUTPUT_SUFFIX
+    out_path = os.path.split(target)
+    out_name = out_path[-1]
+    out_dir = working_dir or os.path.join(*out_path[:-1])
+    out_ext = out_name.split(".")[-1]              
+    out_name = "".join(out_name.split(".")[:-1])
+    return out_dir, out_name, suffix, out_ext
+   
+
+def run(target_file, output_file, args, save_latest=False):
     img = imread.imread(target_file)
     process_img(img, args)
-    save_img(img, output_file)
-    save_img(img, DEFAULT_LATEST)
-    
- 
+    util.save_img(output_file, img)
+    if save_latest:
+        util.save_img(DEFAULT_LATEST, img)
+
+
 def process_img(img, args):
-    view, bounds = edge.get_foreground_area(img, args.max_depth)
-    view = util.get_rgb_view(view, args.rgb_select)
-    fg = edge.find_foreground(view, args.bg_value, args.threshold)
+    params = edge.SmashParams(
+        args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
+    fg, bounds = edge.find_foreground(img, params)
      
     # Various things to do with the result of our image mutations
     if args.reveal_foreground:
@@ -134,11 +224,6 @@ def process_img(img, args):
     if args.reveal_quadrants:
         edge.reveal_quadrants(img, bounds)
     return img
-
-
-def save_img(img, file_name):
-    opts = {"quality": 100}  # max JPEG quality
-    imread.imwrite(file_name, img, opts=opts)
 
 
 if __name__ == "__main__":
