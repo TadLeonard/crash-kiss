@@ -6,6 +6,8 @@ Smashes the things on the left and right side of an image towards the center
 import argparse
 import os
 import glob
+import multiprocessing
+import pprint
 import time
 from crash_kiss import edge, config, util
 import imread
@@ -59,6 +61,10 @@ parser.add_argument("-u", "--output-suffix",
 parser.add_argument("--sequence", type=int, default=0,
                     help="create a sequence of crash kisses from 0 to "
                          "--max-depth in steps of SEQUENCE size")
+parser.add_argument("--in-parallel", type=int,
+                    default=multiprocessing.cpu_count(),
+                    help="generate a sequence of smashed image "
+                         "in parallel across N processes")
 
 
 DEFAULT_OUTPUT_SUFFIX = "smashed"
@@ -71,7 +77,10 @@ def main():
     if args.auto_run:
         auto_run(args)
     elif args.sequence:
-        make_sequence(args)
+        if args.in_parallel == 1:
+            make_sequence(args)
+        else:
+            make_sequence_parallel(args)
     else:
         run_once(args)
         
@@ -122,12 +131,59 @@ def make_sequence(args):
     loc, name, suffix, ext = _get_filename_hints(
         args.target, args.working_dir, args.output_suffix)
     template = os.path.join(loc, "{0}_{1}_{2:04d}.{3}")
-    params = edge.smash_params(
-        args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
+    params = edge.SmashParams(
+        args.max_depth, args.threshold, args.bg_value, args.rgb_select)
+   
     image_steps = edge.iter_smash(img, params, stepsize)
     for img, step in image_steps:
         new_file = template.format(name, suffix, step, ext)
-        save_img(img, new_file)
+        util.save_img(new_file, img)
+
+
+def make_sequence_parallel(args):
+    target = args.target
+    max_depth = args.max_depth
+    stepsize = args.sequence
+    loc, name, suffix, ext = _get_filename_hints(
+        args.target, args.working_dir, args.output_suffix)
+    tail = "{0}_{1}_{2}.{3}".format(name, suffix, "{0:04d}", ext)
+    template = os.path.join(loc, tail)
+    #params = edge.make_smash_params(
+    params = edge.SmashParams(
+        args.max_depth, args.threshold, args.bg_value, args.rgb_select)
+    depths = range(max_depth, -stepsize, -stepsize)
+    print("***")
+    print(depths)
+    print("***")
+    n_procs = multiprocessing.cpu_count()
+    pool = multiprocessing.Pool(n_procs)
+    start = time.time()
+    depth_chunks = list(_chunks(depths, n_procs))
+    pprint.pprint(depth_chunks)
+    print "___"
+    task_chunks = [(target, params, template, d_chunk)
+                   for d_chunk in depth_chunks]
+    pprint.pprint(task_chunks)
+  #  for task_chunk in task_chunks:
+   #     run_parallel_smash(task_chunk)
+    pool.map(run_parallel_smash, task_chunks)
+    print("{0} images in {1:0.1f} seconds".format(
+          len(depths), time.time() - start))
+
+
+def run_parallel_smash(args):
+    edge.parallel_smash(*args)
+
+
+def _chunks(things, n_chunks):
+    chunksize = max(len(things) // n_chunks, 1)
+    stop = 0
+    print(len(things), "<<<<")
+    while stop <= len(things):
+        start = stop
+        stop += chunksize
+        print(start, stop)
+        yield things[start: stop]
 
 
 def run_once(args):
@@ -154,9 +210,9 @@ def _get_filename_hints(target, working_dir, out_suffix):
 def run(target_file, output_file, args, save_latest=False):
     img = imread.imread(target_file)
     process_img(img, args)
-    save_img(img, output_file)
+    util.save_img(output_file, img)
     if save_latest:
-        save_img(img, DEFAULT_LATEST)
+        util.save_img(DEFAULT_LATEST, img)
 
 
 def process_img(img, args):
@@ -174,11 +230,6 @@ def process_img(img, args):
     if args.reveal_quadrants:
         edge.reveal_quadrants(img, bounds)
     return img
-
-
-def save_img(img, file_name):
-    opts = {"quality": 100}  # max JPEG quality
-    imread.imwrite(file_name, img, opts=opts)
 
 
 if __name__ == "__main__":
