@@ -119,6 +119,7 @@ def _smash_at_depth(img, total_fg, depth):
 
 
 def parallel_smash(target, params, template, depths):
+    start = time.time()
     img = imread.imread(target)
     fg, bounds = find_foreground(img, params)  # initial bground mask, bounds
     max_depth = depths[0]
@@ -132,20 +133,14 @@ def parallel_smash(target, params, template, depths):
     total_fg = np.zeros(
         shape=img.shape[:2], dtype=bool)  # 2D mask with same dims as img
     total_fg[:, bounds.start: bounds.stop] = fg
-    
-    print("Processing...")
-    start = time.time()
-    
     for depth in depths[1:]:
         if depth == 0:
             smashed = img
         else:
             smashed = _smash_at_depth(img, total_fg, depth)
         util.save_img(template.format(depth), smashed)
-        print("Depth: {0:04d}\r".format(depth), end="")
-        sys.stdout.flush()
         
-    print("{0} images in {1:0.1f} seconds".format(
+    print("Worker process smashed {0} images in {1:0.1f} seconds".format(
           len(depths), time.time() - start))
 
 
@@ -161,7 +156,7 @@ def center_smash(img, fg, bounds):
     center = start +  2 * max_depth
     mid_right = center + max_depth
     side_len = fg.shape[1] // 2
-    _smash_data = namedtuple("sdata", "start stop mfg_mid "
+    _smash_data = namedtuple("sdata", "start stop fg_mid "
                                       "max_depth fg_l fg_r "
                                       "mid_left center mid_right "
                                       "side_len")
@@ -185,8 +180,6 @@ def center_smash(img, fg, bounds):
         lmov = rmov = max_depth
         if not ls and not rs:
             mov_empty_fg(smash_data, row_data)
-        elif True:
-            continue
         elif ls and not rs:
             mov_left_overshoot(smash_data, row_data)
         elif rs and not ls:
@@ -213,25 +206,28 @@ def mov_empty_fg(smash, row):
     irow[depth: smash.mid_left] = irow[:smash.start]
 
 
-def mov_no_collision(irow, frow):
-    """Smash a row whose foreground area will not touch"""
-    irow[center: -max_depth] = irow[center + max_depth:]
-    irow[max_depth: center] = irow[:start + max_depth]
-
-
-def mov_left_overshoot(irow, frow, ls):
+def mov_left_overshoot(smash, row):
     """Smash a row where the left side overshoots the center line"""
-    irow[mid_right: -max_depth] = irow[stop:]  # no RHS FG
-    irow[max_depth: mid_right] = irow[:center] 
+    irow = row.irow
+    depth = smash.max_depth
+    irow[depth: smash.mid_right] = irow[:smash.center] 
+    irow[smash.mid_right: -depth] = irow[smash.stop:]  # no RHS FG
 
 
-def mov_right_overshoot(irow, frow, rs):
+def mov_right_overshoot(smash, row):
     """Smash a row where the right side overshoots the center line"""
-    irow[max_depth: mid_left] = irow[:start]  # no LHS FG
-    irow[mid_left: -max_depth] = irow[center:]
+    irow = row.irow
+    depth = smash.max_depth
+    irow[depth: smash.mid_left] = irow[:smash.start]  # no LHS FG
+    irow[smash.mid_left: -depth] = irow[smash.center:]
 
 
-def smash(irow, frow, ls, rs):
+def smash(smash, row):
+    fg_mid = smash.fg_mid
+    center = smash.center
+    max_depth = smash.max_depth
+    ls, rs = row.ls, row.rs
+    frow, irow = row.frow, row.irow
     lextra = rextra = 0
     if ls == _MID_FG or rs == _MID_FG:
         if ls != _MID_FG or rs != _MID_FG:
@@ -264,10 +260,13 @@ def smash(irow, frow, ls, rs):
     return lmov, rmov
 
 
-def mov_near_collision(irow, frow, ls, rs):
-    irow[lmov: center - ls + lmov] = irow[: center - ls]
-    irow[center + rs - rmov: -rmov] = irow[center + rs:]
-
+def mov_near_collision(smash, row):
+    depth = smash.max_depth
+    center = smash.center
+    irow = row.irow
+    ls, rs = row.ls, row.rs
+    irow[depth: center - ls + depth] = irow[: center - ls]
+    irow[center + rs - depth: -depth] = irow[center + rs:]
 
     
 def get_foreground_area(img, max_depth):

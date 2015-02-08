@@ -148,26 +148,17 @@ def make_sequence_parallel(args):
         args.target, args.working_dir, args.output_suffix)
     tail = "{0}_{1}_{2}.{3}".format(name, suffix, "{0:04d}", ext)
     template = os.path.join(loc, tail)
-    #params = edge.make_smash_params(
     params = edge.SmashParams(
         args.max_depth, args.threshold, args.bg_value, args.rgb_select)
     depths = range(max_depth, -stepsize, -stepsize)
-    print("***")
-    print(depths)
-    print("***")
-    n_procs = multiprocessing.cpu_count()
+    n_procs = args.in_parallel
     pool = multiprocessing.Pool(n_procs)
     start = time.time()
     depth_chunks = list(_chunks(depths, n_procs))
-    pprint.pprint(depth_chunks)
-    print "___"
     task_chunks = [(target, params, template, d_chunk)
                    for d_chunk in depth_chunks]
-    pprint.pprint(task_chunks)
-  #  for task_chunk in task_chunks:
-   #     run_parallel_smash(task_chunk)
     pool.map(run_parallel_smash, task_chunks)
-    print("{0} images in {1:0.1f} seconds".format(
+    print("Smashed {0} images in {1:0.1f} seconds".format(
           len(depths), time.time() - start))
 
 
@@ -176,13 +167,16 @@ def run_parallel_smash(args):
 
 
 def _chunks(things, n_chunks):
-    chunksize = max(len(things) // n_chunks, 1)
+    n_things = len(things)
+    chunksize = max(n_things // n_chunks, 1)
     stop = 0
-    print(len(things), "<<<<")
-    while stop <= len(things):
+    remainder = n_things % n_chunks
+    while stop < n_things:
         start = stop
         stop += chunksize
-        print(start, stop)
+        if (n_things - stop) < chunksize:
+            stop = n_things
+        chunk = things[start: stop]
         yield things[start: stop]
 
 
@@ -216,7 +210,7 @@ def run(target_file, output_file, args, save_latest=False):
 
 
 def process_img(img, args):
-    params = edge.smash_params(
+    params = edge.SmashParams(
         args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
     fg, bounds = edge.find_foreground(img, params)
      
