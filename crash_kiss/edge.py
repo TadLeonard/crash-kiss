@@ -3,6 +3,7 @@ background (i.e. mostly white or black)"""
 
 from __future__ import division, print_function
 from collections import namedtuple
+from itertools import repeat
 import os
 import sys
 import time
@@ -21,15 +22,15 @@ def find_foreground(img, params):
     view, bounds = get_foreground_area(img, params.max_depth)
     view = util.get_rgb_view(view, params.rgb_select)
     if len(view.shape) == 2:
-        return _compare_pixels(view, params.background, params.threshold)
+        return _compare_pixels(view, params.bg_value, params.threshold)
     rgb_views = [view[:, :, idx] for idx in range(view.shape[-1])]
     
     # the foreground is a 2D array where 1==foreground 0==background
-    fg = _compare_pixels(rgb_views[0], params.background, params.threshold)
+    fg = _compare_pixels(rgb_views[0], params.bg_value, params.threshold)
     for rgb_view in rgb_views[1:]:
         bg = fg == 0
         new_data = _compare_pixels(
-            rgb_view[bg], params.background, params.threshold)
+            rgb_view[bg], params.bg_value, params.threshold)
         fg[bg] = new_data
     return fg, bounds
 
@@ -72,22 +73,27 @@ def simplify_background(background, config):
 # the no-fg-at-all case. This is because `np.argmax` returns 0 if the max
 # value is at index 0 (whether that max value is 0 or 1 or anything else!).
 _MID_FG = 0xFFFF  # placeholder index for foreground data at the center
-_params = "max_depth threshold background rgb_select".split()
+_params = "max_depth threshold bg_value rgb_select".split()
 
 
 class SmashParams(object):
+    """A **picklable** container of values that can be sent to 
+    a `multiprocessing.Process` object. Usually a `namedtuple` or some
+    other simple container would be better, but `namedtuple` is not 
+    picklable!"""
 
-    def __init__(self, *args):
-        self.__dict__.update(zip(_params, args))
+    def __init__(self, *args, **kwargs):
+        given_args = dict(zip(_params, repeat(None)))
+        for name, value in zip(_params, args):
+            given_args[name] = value
+        for name, value in kwargs.items():  
+            given_args[name] = value
+        self.__dict__.update(given_args)
 
 
-#def make_smash_params(*args):
-#    return dict(zip(_params, args))
-
-
-def iter_smash(img, params, stepsize=1):
-    """Yield control to another function for each iteration of a smash.
-    Each time the image is yeilded, the smash progresses by `stepsize`"""
+def sequence_smash(img, params, stepsize=1):
+    """Smash two faces together in steps of `stepsize` pixels per image.
+    Yields control to the calling function for each iteration."""
     start = time.time()
     fg, bounds = find_foreground(img, params)  # initial bground mask, bounds
     max_depth = params.max_depth
@@ -111,11 +117,6 @@ def iter_smash(img, params, stepsize=1):
     print("{0} images in {1:0.1f} seconds".format(
           len(depths) + 2, time.time() - start))
 
-
-def _smash_at_depth(img, total_fg, depth):
-    fg, bounds = get_foreground_area(total_fg, depth)
-    smashed_img = center_smash(img.copy(), fg, bounds)
-    return smashed_img
 
 
 def parallel_smash(target, params, template, depths):
@@ -142,6 +143,12 @@ def parallel_smash(target, params, template, depths):
         
     print("Worker process smashed {0} images in {1:0.1f} seconds".format(
           len(depths), time.time() - start))
+
+
+def _smash_at_depth(img, total_fg, depth):
+    fg, bounds = get_foreground_area(total_fg, depth)
+    smashed_img = center_smash(img.copy(), fg, bounds)
+    return smashed_img
 
 
 def center_smash(img, fg, bounds):
