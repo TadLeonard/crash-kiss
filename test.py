@@ -5,6 +5,7 @@ import numpy as np
 import pytest
 from crash_kiss import outer_edge, edge, util
 from crash_kiss.config import config
+import ckiss
 
 
 def _get_test_img():
@@ -242,6 +243,15 @@ def test_bad_edge_config():
         config(fleshold=10)  # not okay
    
 
+### Test ckiss.py util functions ###
+
+def test_chunks():
+    stuff = range(10)
+    chunks = list(ckiss._chunks(stuff, 2))
+    assert chunks == [range(5), range(5, 10)]
+     
+
+
 ### Test smashing two subjects towards the center
 
 
@@ -249,12 +259,12 @@ def test_conservation_of_foreground():
     """Ensure that `center_smash` doesn't overwrite pixels or somehow 
     delete them when it smashes a simple image"""
     img = util.combine_images([_get_test_img(), _get_test_img()])
-    view, bounds = edge.get_foreground_area(img, 50)
-    total_fg_area = edge.find_foreground(img, 255, 10)
+    params = edge.SmashParams(50, 10, 255, [0, 1, 2])
+    total_fg_area, bounds = edge.find_foreground(img, params)
     total_fg_pixels = np.sum(total_fg_area)  
-    fg = edge.find_foreground(view, 255, 10)
-    edge.center_smash(img, fg, bounds)
-    total_fg_area_after = edge.find_foreground(img, 255, 10)
+    edge.center_smash(img, total_fg_area, bounds)
+    total_fg_area_after = edge.find_foreground(img, params)
+    print total_fg_pixels
     total_fg_pixels_after = np.sum(total_fg_area)  
     assert total_fg_pixels_after == total_fg_pixels
 
