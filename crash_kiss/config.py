@@ -1,4 +1,5 @@
-"""Configuration of edge finding behavior"""
+"""Parameters for subject vs. background 
+thresholds, background values, RGB mask indices, default values, etc."""
 
 
 def config(**kw_overrides):
