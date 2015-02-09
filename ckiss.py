@@ -1,7 +1,7 @@
 #!/usr/bin/env python
 """
 Crash kiss
-==========
+--
 
 An image processing art project. Given an input image, this program
 
