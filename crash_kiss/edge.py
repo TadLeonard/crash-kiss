@@ -1,5 +1,12 @@
-"""Functions for finding the foreground in an image with a clean
-background (i.e. mostly white or black)"""
+"""Functions for determining which parts of an image are in the foreground
+and which parts are in the background.
+
+The goal is to use a `threshold` to compare pixels to a `bg_value`  
+(a background value, usually something to represent the color white).
+If we have a pixel P of three dimensions (R, G, B), P is considered to be
+a part of the 'foreground' if ANY of R, G, or B is different enough than
+`bg_value`. In other words, 
+`is_foreground = any(color - threshold > threshold for color in pixel)"""
 
 from __future__ import division, print_function
 from collections import namedtuple
@@ -35,8 +42,8 @@ def find_foreground(img, params):
 
 
 def _compare_pixels(img, background, threshold):
-    """Compare a 2-D or 3-D image array
-    to a background value given a certain threshold"""
+    """Compare a 2-D or 3-D image array to a background value given a
+    certain threshold"""
     is_num = isinstance(background, int)
     if background - BLACK <= 5:
         diff = img - background > threshold
@@ -76,13 +83,14 @@ _params = "max_depth threshold background rgb_select".split()
 
 
 class SmashParams(object):
+    """A picklable container of parameters to be sent to the
+    `smash` functions. It would be a `namedtuple`, but those are dynamically
+    defined classes, and as such they're cannot be pickled. Picklability
+    is important because we want to be able to run this code over mutliple
+    processes."""
 
     def __init__(self, *args):
         self.__dict__.update(zip(_params, args))
-
-
-#def make_smash_params(*args):
-#    return dict(zip(_params, args))
 
 
 def iter_smash(img, params, stepsize=1):
@@ -113,12 +121,24 @@ def iter_smash(img, params, stepsize=1):
 
 
 def _smash_at_depth(img, total_fg, depth):
+    """Select a subset of the complete background mask (the foreground)
+    and smash that subset of pixels by `depth`"""
     fg, bounds = get_foreground_area(total_fg, depth)
     smashed_img = center_smash(img.copy(), fg, bounds)
     return smashed_img
 
 
 def parallel_smash(target, params, template, depths):
+    """Given an input filename, `target`, a `SmashParams` instance,
+    a `template` for output filenames, and an iterable of `depths`, write
+    a smashed version of the target image to the disk for each depth.
+    """
+    # The images are *written* and not returned or yielded because it's not
+    # efficient to pass huge n-dimensional arrays between processes. Each
+    # process reads its own copy of the target image from the disk and writes
+    # its own smashed output files to the disk. In my tests, the program is
+    # mostly limited by disk IO (even on SSDs). While each additional process
+    # below cpu_count() improves performance, it's usually not by huge amounts.
     start = time.time()
     img = imread.imread(target)
     fg, bounds = find_foreground(img, params)  # initial bground mask, bounds
@@ -129,7 +149,8 @@ def parallel_smash(target, params, template, depths):
     # We'll create a background mask (i.e. the foreground selection) with
     # the same shape as the image. This lets us calculate the entire 
     # foreground just once and slice it down to size for each iteration
-    # of the smash. This saves lots of CPU cycles.
+    # of the smash. Not having to recalculate the foreground each time
+    # saves lots of CPU cycles. 
     total_fg = np.zeros(
         shape=img.shape[:2], dtype=bool)  # 2D mask with same dims as img
     total_fg[:, bounds.start: bounds.stop] = fg
