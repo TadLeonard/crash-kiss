@@ -1,3 +1,5 @@
+"""General image processing processing functions"""
+
 import imread
 from six.moves import zip
 
@@ -51,6 +53,9 @@ def rotate_cw(img):
     return rotate_180(img).swapaxes(0, 1)
 
 
+# Functions for creating numpy slices of images based on a variety of
+# RGB index tuples. Covers some of the RGBA (TIFF files) slices that a user
+# might want, but not all of them. All permutations of RGB slices are covered.
 _rgb_select = {
     (0, 1): lambda view: view[:, :, :2],
     (1, 2): lambda view: view[:, :, 1:3],
@@ -65,6 +70,14 @@ _rgb_select = {
 
 
 def get_rgb_view(img, rgb_indices):
+    """Select a "view" of an image based on RGB indices.
+    The views are created with normal `numpy` array slicing,
+    they are true mutable views of the original data.
+    
+    >>> red_pixels = get_rgb_view(img, [0])
+    >>> red_and_blue = get_rgb_view(img, [0, 2])
+    >>> rgb = get_rgb_view(img, [0, 1, 2])
+    """
     select = _get_rgb_select(img, rgb_indices)
     # We CANNOT use advanced indexing here!
     # Copies of large images are just too expensive.
