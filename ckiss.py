@@ -1,6 +1,14 @@
 #!/usr/bin/env python
 """
-Smashes the things on the left and right side of an image towards the center
+Crash kiss
+==========
+
+An image processing art project. Given an input image, this program
+
+1) tries to determine what is the foreground and what is the background
+2) smashes foreground on the left into foreground on the right hand side
+   towards the middle of the image
+3) optionally highlights the background and/or foreground
 """
 
 import argparse
@@ -15,7 +23,7 @@ import imread
 
 _conf = config.config()   # default conf values
 parser = argparse.ArgumentParser(
-	description="Crash two faces into each other",
+	description=__doc__,
 	formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("target", nargs="?")
 parser.add_argument("-b", "--bg-value", type=int,
@@ -24,7 +32,7 @@ parser.add_argument("-b", "--bg-value", type=int,
                          "'auto' to automatically gather per-row "
                          "background values.",
                       default=_conf["bg_value"])
-parser.add_argument("-o", "--outfile", default=None)
+parser.add_argument("-s", "--smash", action="store_true")
 parser.add_argument("-e", "--reveal-foreground", action="store_true")
 parser.add_argument("-E", "--reveal-background", action="store_true")
 parser.add_argument("-q", "--reveal-quadrants", action="store_true",
@@ -34,7 +42,6 @@ parser.add_argument("-t", "--threshold",
                     help="min difference between background and foreground "
                          "to determine an edge",
                     default=_conf["threshold"], type=int)
-parser.add_argument("-s", "--smash", action="store_true")
 parser.add_argument("-d", "--max-depth", type=int,
                     default=_conf["max_depth"],
                     help="Max number of pixels that the left and right "
@@ -44,6 +51,7 @@ parser.add_argument("-r", "--rgb-select", default=_conf["rgb_select"],
                     type=lambda x: sorted(map(int, x.split(","))),
                     help="Find edges based on a subset of RGB(A?) by "
                          "passing a comma-sep list of indices")
+parser.add_argument("-o", "--outfile", default=None)
 parser.add_argument("-a", "--auto-run", action="store_true",
                     help="automatically process new images that appear in "
                          "the working directory")
@@ -75,17 +83,19 @@ DEFAULT_LATEST = "LAST_CRASH.jpg"
 def main():
     args = parser.parse_args()
     if args.auto_run:
-        auto_run(args)
+        run_auto(args)
     elif args.sequence:
         if args.in_parallel == 1:
-            make_sequence(args)
+            run_sequence(args)
         else:
-            make_sequence_parallel(args)
+            run_sequence_parallel(args)
     else:
         run_once(args)
         
 
-def auto_run(args):
+def run_auto(args):
+    """Automatic photo booth mode! Monitors a directory for new files
+    and processes them automatically until SIGINT."""
     input_suffix = args.search_suffix or DEFAULT_INPUT_SUFFIX
     input_dir = args.working_dir or os.getcwd()
     output_suffix = args.output_suffix or DEFAULT_OUTPUT_SUFFIX
@@ -97,16 +107,19 @@ def auto_run(args):
 
 
 def _auto_run_loop(suffix, input_files, args):
+    """Processes new images in an infinite loop"""
     for input_file in input_files:
         input_name, input_ext = input_file.split(".")
         loc, name, suffix, ext = _get_filename_hints(
             input_file, args.working_dir, args.output_suffix)
         output_file = "{0}_{1}.{2}".format(name, suffix, ext)
         output_file = os.path.join(loc, output_file)
-        run(input_file, output_file, args, save_latest=True)
+        _process_and_save(input_file, output_file, args, save_latest=True)
 
 
-def gen_new_files(search_dir, search_suffix):
+def _gen_new_files(search_dir, search_pattern):
+    """Searches `search_dir` for files matching `search_pattern`.
+    Generates the newly discovered file names one at a time."""
     search_str = "*{0}".format(search_suffix)
     search_dir = os.path.join(search_dir, search_str)
     print("Polling for new files in {0}".format(search_dir))
@@ -119,10 +132,12 @@ def gen_new_files(search_dir, search_suffix):
         for new_file in new_files:
             print("Found new file: {0}".format(new_file))
             yield new_file
-        old_files = set(glob.glob(search_dir))
+        old_files = current_files = set(glob.glob(search_dir))
          
 
-def make_sequence(args):
+def run_sequence(args):
+    """Pull together `argparse` args to carry out a sequence smash.
+    Writes a series of images for a range of smash depths."""
     target = args.target
     max_depth = args.max_depth
     stepsize = args.sequence
@@ -140,7 +155,8 @@ def make_sequence(args):
         util.save_img(new_file, img)
 
 
-def make_sequence_parallel(args):
+def run_sequence_parallel(args):
+    """Carry out a sequence smash across multiple processes"""
     target = args.target
     max_depth = args.max_depth
     stepsize = args.sequence
@@ -157,16 +173,19 @@ def make_sequence_parallel(args):
     depth_chunks = list(_chunks(depths, n_procs))
     task_chunks = [(target, params, template, d_chunk)
                    for d_chunk in depth_chunks]
-    pool.map(run_parallel_smash, task_chunks)
+    pool.map(_run_parallel_smash, task_chunks)
     print("Smashed {0} images in {1:0.1f} seconds".format(
           len(depths), time.time() - start))
 
 
-def run_parallel_smash(args):
+def _run_parallel_smash(args):
+    """Unapacks args for use in call to `pool.map`"""
+    # unpacks args for `pool.map` usage
     edge.parallel_smash(*args)
 
 
 def _chunks(things, n_chunks):
+    """Creates `n_chunks` contiguous slices of `things`"""
     n_things = len(things)
     chunksize = max(n_things // n_chunks, 1)
     stop = 0
@@ -181,6 +200,7 @@ def _chunks(things, n_chunks):
 
 
 def run_once(args):
+    """Process and save an image just once"""
     if args.outfile:
         out_file = args.outfile
     else:
@@ -188,10 +208,19 @@ def run_once(args):
             args.target, args.working_dir, args.output_suffix)
         out_file = "{0}_{1}.{2}".format(name, suffix, ext)
         out_file = os.path.join(loc, out_file)
-    run(args.target, out_file, args)
+    _process_and_save(args.target, out_file, args)
 
 
 def _get_filename_hints(target, working_dir, out_suffix):
+    """Based on the target filename, returns a tuple of
+
+    1) the output directory
+    2) the output filename
+    3) the chosen output suffix (if `out_suffix` is None)
+    4) the output file extension (i.e. '.jpg')
+    
+    The user constructs the output file path like this:
+    `os.path.join(out_dir, "{0}_{1}.{2}".format(name, suffix, ext)`"""
     suffix = out_suffix or DEFAULT_OUTPUT_SUFFIX
     out_path = os.path.split(target)
     out_name = out_path[-1]
@@ -201,15 +230,21 @@ def _get_filename_hints(target, working_dir, out_suffix):
     return out_dir, out_name, suffix, out_ext
    
 
-def run(target_file, output_file, args, save_latest=False):
+def _process_and_save(target_file, output_file, args, save_latest=False):
+    """Processes an image ad saves the rusult. Optionally saves the result
+    twice (once to DEFAULT_SMASH.jpg) for convenience in the photo booth."""
     img = imread.imread(target_file)
-    process_img(img, args)
-    util.save_img(output_file, img)
+    new_img = _process_img(img, args)
+    util.save_img(output_file, new_img)
     if save_latest:
-        util.save_img(DEFAULT_LATEST, img)
+        ext = output_file.split(".")[-1]
+        util.save_img(DEFAULT_LATEST.format(ext), new_img)
 
 
-def process_img(img, args):
+
+def _process_img(img, args):
+    """Does none or more of several things to `img` based on the given
+    `argparse` args."""
     params = edge.SmashParams(
         args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
     fg, bounds = edge.find_foreground(img, params)
