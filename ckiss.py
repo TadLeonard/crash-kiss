@@ -6,8 +6,7 @@ Crash kiss
 An image processing art project. Given an input image, this program
 
 1) tries to determine what is the foreground and what is the background
-2) smashes foreground on the left into foreground on the right hand side
-   towards the middle of the image
+2) smashes foreground on the left into foreground on the right
 3) optionally highlights the background and/or foreground
 """
 
