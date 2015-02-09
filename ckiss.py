@@ -174,7 +174,7 @@ def _chunks(things, n_chunks):
     while stop < n_things:
         start = stop
         stop += chunksize
-        if (n_things - stop) < chunksize:
+        if (n_things - stop) < n_chunks:
             stop = n_things
         chunk = things[start: stop]
         yield things[start: stop]

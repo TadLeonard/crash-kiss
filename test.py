@@ -249,7 +249,18 @@ def test_chunks():
     stuff = range(10)
     chunks = list(ckiss._chunks(stuff, 2))
     assert chunks == [range(5), range(5, 10)]
-     
+
+
+def test_odd_chunks():
+    """Make sure that leftover pieces of the iterable
+    get tacked on to the last element."""
+    stuff = range(13)  # odd, so one list will be longer than the other
+    chunks = list(ckiss._chunks(stuff, 2))
+    assert chunks == [range(6), range(6, 13)]
+    stuff = range(15)
+    chunks = list(ckiss._chunks(stuff, 4))
+    assert chunks == [range(3), range(3, 6), range(6, 9), range(9, 15)]
+    
 
 
 ### Test smashing two subjects towards the center
@@ -264,7 +275,6 @@ def test_conservation_of_foreground():
     total_fg_pixels = np.sum(total_fg_area)  
     edge.center_smash(img, total_fg_area, bounds)
     total_fg_area_after = edge.find_foreground(img, params)
-    print total_fg_pixels
     total_fg_pixels_after = np.sum(total_fg_area)  
     assert total_fg_pixels_after == total_fg_pixels
 
