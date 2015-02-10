@@ -1,6 +1,6 @@
 Crash Kiss: an art project automated
 ====================================
-Crash kiss is an image processing art project. The goal of the project is to replicate artist Rollin Leonard's 2013 work entitled Crash Kiss. Seeing a [sample](http://rollinleonard.com/projects/2013/crashKiss-guthrieEllis/) of the original work is the quickest way to understand what it's all about.
+Crash kiss is an image processing art project. The goal of the project is to replicate artist Rollin Leonard's 2013 work entitled Crash Kiss. Seeing a [sample](http://rollinleonard.com/projects/2013/crashKiss-guthrieEllis/) of the original work is the quickest way to understand it.
 
 Rollin's original work was done very carefully (and slowly) in Photoshop. Automating his process will allow him to generate more content and make changes to the process more easily, and that's what this project is all about.
 
