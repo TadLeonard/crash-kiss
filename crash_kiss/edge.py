@@ -165,6 +165,12 @@ def parallel_smash(target, params, template, depths):
           len(depths), time.time() - start))
 
 
+_smash_data = namedtuple("sdata", "start stop fg_mid "
+                                  "max_depth fg_l fg_r "
+                                  "mid_left center mid_right "
+                                  "side_len")
+
+
 def center_smash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
@@ -177,14 +183,9 @@ def center_smash(img, fg, bounds):
     center = start +  2 * max_depth
     mid_right = center + max_depth
     side_len = fg.shape[1] // 2
-    _smash_data = namedtuple("sdata", "start stop fg_mid "
-                                      "max_depth fg_l fg_r "
-                                      "mid_left center mid_right "
-                                      "side_len")
     smash_data = _smash_data(start, stop, fg_mid, max_depth, fg_l,
                              fg_r, mid_left, center, mid_right,
                              side_len)
-    #smash_data = locals()
 
     lfg = fg[:, :bounds.fg_mid]
     lfg = util.invert_horizontal(lfg)
