@@ -291,14 +291,14 @@ def mov_near_collision(smash, row):
 
     
 def get_foreground_area(img, max_depth):
-    bounds = _get_fg_bounds(img.shape, max_depth)
+    bounds = get_fg_bounds(img.shape, max_depth)
     return img[:, bounds.start: bounds.stop], bounds
 
 
 _fg_bounds = namedtuple("fg_bounds", "start stop fg_mid")
 
 
-def _get_fg_bounds(img_shape, max_depth):
+def get_fg_bounds(img_shape, max_depth):
     """Returns start, stop idx of the 'smashable foreground'
     area in the middle of an image.
 

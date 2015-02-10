@@ -138,16 +138,16 @@ def run_sequence(args):
     """Pull together `argparse` args to carry out a sequence smash.
     Writes a series of images for a range of smash depths."""
     target = args.target
-    max_depth = args.max_depth
     stepsize = args.sequence
     img = imread.imread(target)
     view = util.get_rgb_view(img, args.rgb_select)
     loc, name, suffix, ext = _get_filename_hints(
         args.target, args.working_dir, args.output_suffix)
     template = os.path.join(loc, "{0}_{1}_{2:04d}.{3}")
+    bounds = edge.get_fg_bounds(img.shape, args.max_depth)
+    max_depth = (bounds.stop - bounds.start ) // 4  # actual depth
     params = edge.SmashParams(
-        args.max_depth, args.threshold, args.bg_value, args.rgb_select)
-   
+        max_depth, args.threshold, args.bg_value, args.rgb_select)
     image_steps = edge.iter_smash(img, params, stepsize)
     for img, step in image_steps:
         new_file = template.format(name, suffix, step, ext)
@@ -157,15 +157,19 @@ def run_sequence(args):
 def run_sequence_parallel(args):
     """Carry out a sequence smash across multiple processes"""
     target = args.target
-    max_depth = args.max_depth
     stepsize = args.sequence
     loc, name, suffix, ext = _get_filename_hints(
         args.target, args.working_dir, args.output_suffix)
     tail = "{0}_{1}_{2}.{3}".format(name, suffix, "{0:04d}", ext)
     template = os.path.join(loc, tail)
+    img = imread.imread(target)
+    bounds = edge.get_fg_bounds(img.shape, args.max_depth)
+    max_depth = (bounds.stop - bounds.start) // 4  # actual depth 
     params = edge.SmashParams(
-        args.max_depth, args.threshold, args.bg_value, args.rgb_select)
+        max_depth, args.threshold, args.bg_value, args.rgb_select)
     depths = range(max_depth, -stepsize, -stepsize)
+    depths = [d for d in depths if d > 0]
+    depths.append(0)
     n_procs = args.in_parallel
     pool = multiprocessing.Pool(n_procs)
     start = time.time()
