@@ -34,8 +34,8 @@ On Windows
 4. Clone https://github.com/TadLeonard/crash_kiss.git
 5. Run `python ckiss.py [options]`
 
-On Linux (Debian, Ubuntu)
-#########################
+On Linux
+########
 1. Run `pip install numpy imread`
 2. Clone https://github.com/TadLeonard/crash_kiss.git
 3. Run `python ckiss.py [options]`
