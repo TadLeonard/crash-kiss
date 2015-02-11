@@ -200,7 +200,7 @@ def get_edge(img, background, config):
         for img_slice, start, stop in _row_slices(img_chunk, found_edge):
             if bg_is_array:
                 bg = background[start: stop]
-            fg = edge.find_foreground(img_slice, bg, threshold)
+            fg = edge.compare_background(img_slice, bg, threshold)
             sub_edge = np.argmax(fg, axis=1)
             nz_sub_edge = sub_edge != 0
             sub_edge[nz_sub_edge] += prev_idx

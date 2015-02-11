@@ -1,5 +1,12 @@
-"""Functions for finding the foreground in an image with a clean
-background (i.e. mostly white or black)"""
+"""Functions for determining which parts of an image are in the foreground
+and which parts are in the background.
+
+The goal is to use a `threshold` to compare pixels to a `bg_value`  
+(a background value, usually something to represent the color white).
+If we have a pixel P of three dimensions (R, G, B), P is considered to be
+a part of the 'foreground' if ANY of R, G, or B is different enough than
+`bg_value`. In other words, 
+`is_foreground = any(color - threshold > threshold for color in pixel)"""
 
 from __future__ import division, print_function
 from collections import namedtuple
@@ -22,22 +29,22 @@ def find_foreground(img, params):
     view, bounds = get_foreground_area(img, params.max_depth)
     view = util.get_rgb_view(view, params.rgb_select)
     if len(view.shape) == 2:
-        return _compare_pixels(view, params.bg_value, params.threshold)
+        return compare_background(view, params.bg_value, params.threshold)
     rgb_views = [view[:, :, idx] for idx in range(view.shape[-1])]
     
     # the foreground is a 2D array where 1==foreground 0==background
-    fg = _compare_pixels(rgb_views[0], params.bg_value, params.threshold)
+    fg = compare_background(rgb_views[0], params.bg_value, params.threshold)
     for rgb_view in rgb_views[1:]:
         bg = fg == 0
-        new_data = _compare_pixels(
+        new_data = compare_background(
             rgb_view[bg], params.bg_value, params.threshold)
         fg[bg] = new_data
     return fg, bounds
 
 
-def _compare_pixels(img, background, threshold):
-    """Compare a 2-D or 3-D image array
-    to a background value given a certain threshold"""
+def compare_background(img, background, threshold):
+    """Compare a 2-D or 3-D image array to a background value given a
+    certain threshold"""
     is_num = isinstance(background, int)
     if background - BLACK <= 5:
         diff = img - background > threshold
@@ -91,9 +98,9 @@ class SmashParams(object):
         self.__dict__.update(given_args)
 
 
-def sequence_smash(img, params, stepsize=1):
-    """Smash two faces together in steps of `stepsize` pixels per image.
-    Yields control to the calling function for each iteration."""
+def iter_smash(img, params, stepsize=1):
+    """Yield control to another function for each iteration of a smash.
+    Each time the image is yeilded, the smash progresses by `stepsize`"""
     start = time.time()
     fg, bounds = find_foreground(img, params)  # initial bground mask, bounds
     max_depth = params.max_depth
@@ -118,8 +125,17 @@ def sequence_smash(img, params, stepsize=1):
           len(depths) + 2, time.time() - start))
 
 
-
 def parallel_smash(target, params, template, depths):
+    """Given an input filename, `target`, a `SmashParams` instance,
+    a `template` for output filenames, and an iterable of `depths`, write
+    a smashed version of the target image to the disk for each depth.
+    """
+    # The images are *written* and not returned or yielded because it's not
+    # efficient to pass huge n-dimensional arrays between processes. Each
+    # process reads its own copy of the target image from the disk and writes
+    # its own smashed output files to the disk. In my tests, the program is
+    # mostly limited by disk IO (even on SSDs). While each additional process
+    # below cpu_count() improves performance, it's usually not by huge amounts.
     start = time.time()
     img = imread.imread(target)
     fg, bounds = find_foreground(img, params)  # initial bground mask, bounds
@@ -130,7 +146,8 @@ def parallel_smash(target, params, template, depths):
     # We'll create a background mask (i.e. the foreground selection) with
     # the same shape as the image. This lets us calculate the entire 
     # foreground just once and slice it down to size for each iteration
-    # of the smash. This saves lots of CPU cycles.
+    # of the smash. Not having to recalculate the foreground each time
+    # saves lots of CPU cycles. 
     total_fg = np.zeros(
         shape=img.shape[:2], dtype=bool)  # 2D mask with same dims as img
     total_fg[:, bounds.start: bounds.stop] = fg
@@ -146,9 +163,17 @@ def parallel_smash(target, params, template, depths):
 
 
 def _smash_at_depth(img, total_fg, depth):
+    """Select a subset of the complete background mask (the foreground)
+    and smash that subset of pixels by `depth`"""
     fg, bounds = get_foreground_area(total_fg, depth)
     smashed_img = center_smash(img.copy(), fg, bounds)
     return smashed_img
+
+
+_smash_data = namedtuple("sdata", "start stop fg_mid "
+                                  "max_depth fg_l fg_r "
+                                  "mid_left center mid_right "
+                                  "side_len")
 
 
 def center_smash(img, fg, bounds):
@@ -163,14 +188,9 @@ def center_smash(img, fg, bounds):
     center = start +  2 * max_depth
     mid_right = center + max_depth
     side_len = fg.shape[1] // 2
-    _smash_data = namedtuple("sdata", "start stop fg_mid "
-                                      "max_depth fg_l fg_r "
-                                      "mid_left center mid_right "
-                                      "side_len")
     smash_data = _smash_data(start, stop, fg_mid, max_depth, fg_l,
                              fg_r, mid_left, center, mid_right,
                              side_len)
-    #smash_data = locals()
 
     lfg = fg[:, :bounds.fg_mid]
     lfg = util.invert_horizontal(lfg)
@@ -277,14 +297,14 @@ def mov_near_collision(smash, row):
 
     
 def get_foreground_area(img, max_depth):
-    bounds = _get_fg_bounds(img.shape, max_depth)
+    bounds = get_fg_bounds(img.shape, max_depth)
     return img[:, bounds.start: bounds.stop], bounds
 
 
 _fg_bounds = namedtuple("fg_bounds", "start stop fg_mid")
 
 
-def _get_fg_bounds(img_shape, max_depth):
+def get_fg_bounds(img_shape, max_depth):
     """Returns start, stop idx of the 'smashable foreground'
     area in the middle of an image.
 
