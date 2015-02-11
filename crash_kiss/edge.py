@@ -304,17 +304,16 @@ def get_foreground_area(img, max_depth):
 _fg_bounds = namedtuple("fg_bounds", "start stop fg_mid")
 
 
-def get_fg_bounds(img_shape, max_depth):
+def get_fg_bounds(img_width, max_depth):
     """Returns start, stop idx of the 'smashable foreground'
     area in the middle of an image.
 
     Indexing the image with `img[:, start:stop]` will successfully
     select the foreground columns."""
-    width = img_shape[1]
-    half = width // 2
+    half = img_width // 2
     if max_depth >= half or max_depth == FULL_DEPTH:
-        max_depth = width // 4
-    start = (width // 2) - (max_depth * 2)
+        max_depth = img_width // 4
+    start = (img_width // 2) - (max_depth * 2)
     stop = start + max_depth * 4
     assert stop - start == max_depth * 4
     fg_mid = (stop - start) // 2

@@ -144,7 +144,7 @@ def run_sequence(args):
     loc, name, suffix, ext = _get_filename_hints(
         args.target, args.working_dir, args.output_suffix)
     template = os.path.join(loc, "{0}_{1}_{2:04d}.{3}")
-    bounds = edge.get_fg_bounds(img.shape, args.max_depth)
+    bounds = edge.get_fg_bounds(img.shape[1], args.max_depth)
     max_depth = (bounds.stop - bounds.start ) // 4  # actual depth
     params = edge.SmashParams(
         max_depth, args.threshold, args.bg_value, args.rgb_select)
@@ -163,7 +163,7 @@ def run_sequence_parallel(args):
     tail = "{0}_{1}_{2}.{3}".format(name, suffix, "{0:04d}", ext)
     template = os.path.join(loc, tail)
     img = imread.imread(target)
-    bounds = edge.get_fg_bounds(img.shape, args.max_depth)
+    bounds = edge.get_fg_bounds(img.shape[1], args.max_depth)
     max_depth = (bounds.stop - bounds.start) // 4  # actual depth 
     params = edge.SmashParams(
         max_depth, args.threshold, args.bg_value, args.rgb_select)
