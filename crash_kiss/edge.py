@@ -211,11 +211,11 @@ def center_smash(img, fg, bounds):
         elif rs and not ls:
             mov_right_overshoot(smash_data, row_data)
         elif rs == _MID_FG or ls == _MID_FG:
-            lmov, rmov = smash(smash_data, row_data)
+            lmov, rmov = mov_smash(smash_data, row_data)
         elif (rs < max_depth) and (ls < max_depth):
-            lmov, rmov = smash(smash_data, row_data)
+            lmov, rmov = mov_smash(smash_data, row_data)
         elif rs + ls <= side_len:
-            lmov, rmov = smash(smash_data, row_data)
+            lmov, rmov = mov_smash(smash_data, row_data)
         else:
             mov_near_collision(smash_data, row_data)
         irow[:lmov] = WHITE
@@ -248,7 +248,7 @@ def mov_right_overshoot(smash, row):
     irow[smash.mid_left: -depth] = irow[smash.center:]
 
 
-def smash(smash, row):
+def mov_smash(smash, row):
     fg_mid = smash.fg_mid
     center = smash.center
     max_depth = smash.max_depth
