@@ -164,7 +164,7 @@ def run_sequence_parallel(args):
     template = os.path.join(loc, tail)
     img = imread.imread(target)
     bounds = edge.get_fg_bounds(img.shape[1], args.max_depth)
-    max_depth = (bounds.stop - bounds.start) // 4  # actual depth 
+    max_depth = bounds.max_depth  # actual max depth!
     params = edge.SmashParams(
         max_depth, args.threshold, args.bg_value, args.rgb_select)
     depths = range(max_depth, -stepsize, -stepsize)

@@ -103,7 +103,7 @@ def iter_smash(img, params, stepsize=1):
     Each time the image is yeilded, the smash progresses by `stepsize`"""
     start = time.time()
     fg, bounds = find_foreground(img, params)  # initial bground mask, bounds
-    max_depth = params.max_depth
+    max_depth = bounds.max_depth
     yield center_smash(img.copy(), fg, bounds), max_depth  # deepest smash
 
     # We'll create a background mask (i.e. the foreground selection) with
@@ -181,8 +181,7 @@ def center_smash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
-    start, stop, fg_mid = bounds
-    max_depth = fg.shape[1] // 4
+    start, stop, fg_mid, max_depth = bounds
     fg_l = fg_mid - max_depth
     fg_r = fg_mid + max_depth
     mid_left = start + max_depth
@@ -301,7 +300,7 @@ def get_foreground_area(img, max_depth):
     return img[:, bounds.start: bounds.stop], bounds
 
 
-_fg_bounds = namedtuple("fg_bounds", "start stop fg_mid")
+_fg_bounds = namedtuple("fg_bounds", "start stop fg_mid max_depth")
 
 
 def get_fg_bounds(img_width, max_depth):
@@ -310,14 +309,12 @@ def get_fg_bounds(img_width, max_depth):
 
     Indexing the image with `img[:, start:stop]` will successfully
     select the foreground columns."""
-    half = img_width // 2
-    if max_depth >= half or max_depth == FULL_DEPTH:
+    if max_depth > img_width // 4 or max_depth == FULL_DEPTH:
         max_depth = img_width // 4
     start = (img_width // 2) - (max_depth * 2)
     stop = start + max_depth * 4
-    assert stop - start == max_depth * 4
     fg_mid = (stop - start) // 2
-    return _fg_bounds(start, stop, fg_mid)
+    return _fg_bounds(start, stop, fg_mid, max_depth)
 
 
 PURPLE = [118, 0, 118]
@@ -331,8 +328,7 @@ def reveal_foreground(img, foreground, bounds):
     """Paints the foreground of the foreground selection area
     1) purple if the pixel is in an OUTER quadrant
     or 2) black if the pixel is in an INNER quadrant"""
-    start, stop, fg_mid = bounds
-    max_depth = (stop - start) // 4
+    start, stop, fg_mid, max_depth = bounds
     critical_fg = foreground[:, max_depth: -max_depth]
     img[:, start: stop][foreground] = PURPLE
     img[:, start + max_depth: stop - max_depth][critical_fg] = BLACK
@@ -341,8 +337,7 @@ def reveal_foreground(img, foreground, bounds):
 def reveal_quadrants(img, bounds):
     """Places vertical lines to represent the "quadrants" that
     crash_kiss uses to determine the "smashable area" of the image"""
-    start, stop, fg_mid = bounds
-    max_depth = (stop - start) // 4
+    start, stop, fg_mid, max_depth = bounds
     width = 4
     width = img.shape[1] // 2000 + 1
     lmid = start + max_depth
