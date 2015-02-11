@@ -297,7 +297,7 @@ def mov_near_collision(smash, row):
 
     
 def get_foreground_area(img, max_depth):
-    bounds = get_fg_bounds(img.shape, max_depth)
+    bounds = get_fg_bounds(img.shape[1], max_depth)
     return img[:, bounds.start: bounds.stop], bounds
 
 
