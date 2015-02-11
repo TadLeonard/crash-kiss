@@ -174,6 +174,7 @@ _smash_data = namedtuple("sdata", "start stop fg_mid "
                                   "max_depth fg_l fg_r "
                                   "mid_left center mid_right "
                                   "side_len")
+_row_data = namedtuple("row", "irow ls rs frow")
 
 
 def center_smash(img, fg, bounds):
@@ -200,7 +201,6 @@ def center_smash(img, fg, bounds):
     rstart = np.argmax(rfg, axis=1)
     rstart[rfg[:, 0] == 1] = _MID_FG
 
-    _row_data = namedtuple("row", "irow ls rs frow")
     for row_data in zip(img, lstart, rstart, fg):
         irow, ls, rs, frow = row_data
         row_data = _row_data(*row_data)
