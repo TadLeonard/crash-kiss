@@ -53,7 +53,7 @@ def test_side_config():
 def test_no_edge():
     """Make sure parts of the image with no edge get an edge index of 0"""
     img = _get_test_img()
-    assert np.all(img[:5] == [255, 255, 255])  # top rows aughtta be white
+    assert np.all(img[:5] == [255, 255, 255])  # top rows oughta be white
     sub = outer_edge.Subject(img=img)
     # Edges are masked arrays. A True value in a masked array indicates that
     # the value is masked, so we want white rows's edges to be masked
