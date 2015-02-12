@@ -313,11 +313,35 @@ def test_center_smash_mov_empty_fg():
     data_in =  _ints("11112 00000 00000 00000 31111")
     data_out = _ints("00011 11200 00000 00311 11100")
     smash_data, row_data = _row(data_in, 3)  # restricted depth
-    print(row_data)
-    print(smash_data)
     assert not np.any(row_data.frow)
     assert np.all(row_data.irow == data_in)  # just a sanity check
     edge.mov_empty_fg(smash_data, row_data)  # smash the row
+    _clear(smash_data, row_data)
+    print("".join(map(str, row_data.irow)))
+    assert np.all(row_data.irow == data_out)
+
+
+def test_center_smash_mov_left_overshoot():
+    """Test the case where the only foreground present is
+    on the left side and the foreground will overshoot the center line"""
+    data_in =  _ints("00000 00222 20000 00000 31111")
+    data_out = _ints("00000 00000 22220 00311 11100")
+    smash_data, row_data = _row(data_in, 3)  # restricted depth
+    assert np.all(row_data.irow == data_in)  # just a sanity check
+    edge.mov_left_overshoot(smash_data, row_data)  # smash the row
+    _clear(smash_data, row_data)
+    print("".join(map(str, row_data.irow)))
+    assert np.all(row_data.irow == data_out)
+
+
+def test_center_smash_mov_right_overshoot():
+    """Test the case where the only foreground present is
+    on the left side and the foreground will overshoot the center line"""
+    data_in =  _ints("11113 00000 00002 22200 00000")
+    data_out = _ints("00011 11300 02222 00000 00000")
+    smash_data, row_data = _row(data_in, 3)  # restricted depth
+    assert np.all(row_data.irow == data_in)  # just a sanity check
+    edge.mov_right_overshoot(smash_data, row_data)  # smash the row
     _clear(smash_data, row_data)
     print("".join(map(str, row_data.irow)))
     assert np.all(row_data.irow == data_out)
