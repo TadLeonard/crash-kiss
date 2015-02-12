@@ -280,7 +280,7 @@ def test_conservation_of_foreground():
     assert total_fg_pixels_after == total_fg_pixels
 
 
-def test_center_smash_1():
+def test_center_smash_mov_smash_1():
     """Test a smash where the foreground intersects the middle.
     In this case, the foreground in the middle should be fixed
     in place. The data on either side will collapse based on how much
@@ -296,7 +296,7 @@ def test_center_smash_1():
     assert np.all(row_data.irow == data_out)
 
 
-def test_center_smash_2():
+def test_center_smash_mov_smash_2():
     """Smash a row of even length with interleaved background space"""
     # NOTE: middle is here          |
     data_in =  _ints("00000 03010 00000 00010 03011")
@@ -304,6 +304,20 @@ def test_center_smash_2():
     smash_data, row_data = _row(data_in, )    
     assert np.all(row_data.irow == data_in)  # just a sanity check
     edge.mov_smash(smash_data, row_data)  # smash the row
+    _clear(smash_data, row_data)
+    print("".join(map(str, row_data.irow)))
+    assert np.all(row_data.irow == data_out)
+
+
+def test_center_smash_mov_empty_fg():
+    data_in =  _ints("11112 00000 00000 00000 31111")
+    data_out = _ints("00011 11200 00000 00311 11100")
+    smash_data, row_data = _row(data_in, 3)  # restricted depth
+    print(row_data)
+    print(smash_data)
+    assert not np.any(row_data.frow)
+    assert np.all(row_data.irow == data_in)  # just a sanity check
+    edge.mov_empty_fg(smash_data, row_data)  # smash the row
     _clear(smash_data, row_data)
     print("".join(map(str, row_data.irow)))
     assert np.all(row_data.irow == data_out)
