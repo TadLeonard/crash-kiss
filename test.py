@@ -347,6 +347,17 @@ def test_center_smash_mov_right_overshoot():
     assert np.all(row_data.irow == data_out)
 
 
+def test_center_smash_mov_near_collision():
+    data_in =  _ints("00000 00110 00000 02200 00000")
+    data_out = _ints("00000 00000 11022 00000 00000")
+    smash_data, row_data = _row(data_in, 3)  # restricted depth
+    assert np.all(row_data.irow == data_in)  # just a sanity check
+    edge.mov_near_collision(smash_data, row_data)  # smash the row
+    _clear(smash_data, row_data)
+    print("".join(map(str, row_data.irow)))
+    assert np.all(row_data.irow == data_out)
+
+   
 def _row(data, max_depth=None):
     """Make a `edge._row_data` namedtuple instance based on a list of 
     ones (or other numbers) and zeros to represent a background mask
