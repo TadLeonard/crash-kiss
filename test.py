@@ -1,3 +1,4 @@
+from __future__ import print_function
 import os
 import itertools
 import imread
@@ -278,3 +279,72 @@ def test_conservation_of_foreground():
     total_fg_pixels_after = np.sum(total_fg_area)  
     assert total_fg_pixels_after == total_fg_pixels
 
+
+def test_center_smash_1():
+    """Test a smash where the foreground intersects the middle.
+    In this case, the foreground in the middle should be fixed
+    in place. The data on either side will collapse based on how much
+    negative space is present. So the negative space will "collapse"
+    by a certain amount and the outer foreground will shift inward
+    by that amount."""
+    data_in =  _ints("0000 1010 2110 0010 1011")
+    data_out = _ints("0000 0011 2110 1010 1111")  # expected result
+    smash_data, row_data = _row(data_in, )    
+    assert np.all(row_data.irow == data_in)  # just a sanity check
+    edge.mov_smash(smash_data, row_data)  # smash the row
+    print("".join(map(str, row_data.irow)))
+    assert np.all(row_data.irow == data_out)
+
+
+def test_center_smash_2():
+    """Smash a row of even length with interleaved background space"""
+    # NOTE: middle is here          |
+    data_in =  _ints("00000 03010 00000 00010 03011")
+    data_out = _ints("00000 00000 03110 03011 00000")
+    smash_data, row_data = _row(data_in, )    
+    assert np.all(row_data.irow == data_in)  # just a sanity check
+    edge.mov_smash(smash_data, row_data)  # smash the row
+    _clear(smash_data, row_data)
+    print("".join(map(str, row_data.irow)))
+    assert np.all(row_data.irow == data_out)
+
+
+def _row(data, max_depth=None):
+    """Make a `edge._row_data` namedtuple instance based on a list of 
+    ones (or other numbers) and zeros to represent a background mask
+    (where 0==background and foreground>=1)"""
+    max_depth = max_depth or len(data)
+    img_row = np.ndarray(shape=(len(data),), dtype=np.uint8)
+    img_row[:] = data
+
+    # assemble _smash_data namedtuple
+    bounds = edge.get_fg_bounds(len(img_row), max_depth)
+    start, stop, fg_mid, max_depth = bounds
+    fg_row = img_row[start: stop] != 0
+    fg_l = fg_mid - max_depth
+    fg_r = fg_mid + max_depth
+    mid_left = start + max_depth
+    center = start + 2 * max_depth
+    center = start + 2 * max_depth
+    mid_right = center + max_depth
+    side_len = max_depth * 2
+    smash_data = edge._smash_data(
+        start, stop, fg_mid, max_depth, fg_l, fg_r, mid_left,
+        center, mid_right, side_len)
+                                    
+    # assemble _row_data namedtuple
+    ls = fg_row[:fg_mid:-1].argmax()  # distance from center to left subject
+    rs = fg_row[fg_mid:].argmax()  # distance from center to right subject
+    row_data = edge._row_data(img_row, ls, rs, fg_row)
+    return smash_data, row_data
+
+
+def _ints(data):
+    """Remove spaces, convert to list of ints"""
+    return map(int, data.replace(" ", ""))
+
+
+def _clear(smash_data, row_data):
+    depth = smash_data.max_depth
+    row_data.irow[:depth] = 0
+    row_data.irow[-depth + 1:] = 0
