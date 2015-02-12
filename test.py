@@ -263,9 +263,7 @@ def test_odd_chunks():
     assert chunks == [range(3), range(3, 6), range(6, 9), range(9, 15)]
     
 
-
 ### Test smashing two subjects towards the center
-
 
 def test_conservation_of_foreground():
     """Ensure that `center_smash` doesn't overwrite pixels or somehow 
