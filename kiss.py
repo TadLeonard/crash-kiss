@@ -258,7 +258,7 @@ def _process_img(img, args):
     if args.reveal_background:
         util.reveal_background(img, fg, bounds)
     if args.smash:
-        edge.center_smash(img, fg, bounds)
+        crash.center_smash(img, fg, bounds)
     if args.reveal_quadrants:
         util.reveal_quadrants(img, bounds)
     return img
