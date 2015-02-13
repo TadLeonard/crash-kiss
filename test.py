@@ -6,7 +6,7 @@ import numpy as np
 import pytest
 from crash_kiss import outer_edge, edge, util
 from crash_kiss.config import config
-import ckiss
+import crash
 
 
 def _get_test_img():
@@ -244,11 +244,11 @@ def test_bad_edge_config():
         config(fleshold=10)  # not okay
    
 
-### Test ckiss.py util functions ###
+### Test crash.py util functions ###
 
 def test_chunks():
     stuff = range(10)
-    chunks = list(ckiss._chunks(stuff, 2))
+    chunks = list(crash._chunks(stuff, 2))
     assert chunks == [range(5), range(5, 10)]
 
 
@@ -256,10 +256,10 @@ def test_odd_chunks():
     """Make sure that leftover pieces of the iterable
     get tacked on to the last element."""
     stuff = range(13)  # odd, so one list will be longer than the other
-    chunks = list(ckiss._chunks(stuff, 2))
+    chunks = list(crash._chunks(stuff, 2))
     assert chunks == [range(6), range(6, 13)]
     stuff = range(15)
-    chunks = list(ckiss._chunks(stuff, 4))
+    chunks = list(crash._chunks(stuff, 4))
     assert chunks == [range(3), range(3, 6), range(6, 9), range(9, 15)]
     
 
