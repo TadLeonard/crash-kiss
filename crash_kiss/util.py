@@ -100,3 +100,63 @@ def _get_rgb_select(img, rgb_indices):
     return tuple(sorted(set(rgb_indices)))
 
 
+PURPLE = [118, 0, 118]
+TEAL = [60, 120, 160]
+GREEN = [0, 255, 0]
+YELLOW = [255, 255, 0]
+PINK = [255, 0, 255]
+
+
+def reveal_foreground(img, foreground, bounds):
+    """Paints the foreground of the foreground selection area
+    1) purple if the pixel is in an OUTER quadrant
+    or 2) black if the pixel is in an INNER quadrant"""
+    start, stop, fg_mid, max_depth = bounds
+    critical_fg = foreground[:, max_depth: -max_depth]
+    img[:, start: stop][foreground] = PURPLE
+    img[:, start + max_depth: stop - max_depth][critical_fg] = BLACK
+
+
+def reveal_quadrants(img, bounds):
+    """Places vertical lines to represent the "quadrants" that
+    crash_kiss uses to determine the "smashable area" of the image"""
+    start, stop, fg_mid, max_depth = bounds
+    width = 4
+    width = img.shape[1] // 2000 + 1
+    lmid = start + max_depth
+    mid = start + max_depth * 2
+    rmid = stop - max_depth
+    img[:, start - width: start + width] = GREEN
+    img[:, stop - width: stop + width] = GREEN
+    img[:, mid - width: mid + width] = YELLOW
+    img[:, lmid - width: lmid + width] = PINK
+    img[:, rmid - width: rmid + width] = PINK
+
+
+def reveal_background(img, foreground, bounds):
+    """Paints the background of the foreground selection area teal"""
+    img[:, bounds.start: bounds.stop][foreground == 0] = TEAL
+
+
+# green, red, yellow, cyan
+_EDGE_REVEAL = [0, 255, 0], [255, 0, 0], [255, 255, 0], [0, 255, 255]
+
+
+def reveal_outer_edges(subject, width):
+    """Highlights the left, right, upper, and lower edges of an image
+    with green, red, yellow, and cyan."""
+    if not width:
+        width = max(2, subject.img.shape[0] // 50)
+    _ = subject.edges  # process edges before mutating the image
+    for side, color in zip(subject, _EDGE_REVEAL):
+        view = side.view
+        left_col = view[::, 0].copy()
+        cols = side.edge.copy()
+        rows = np.arange(view.shape[0])
+        subtracts = [0] + ([1] * (width - 1))
+        for n in subtracts:
+            nz_cols = cols != 0
+            cols[nz_cols] -= n
+            view[rows, cols] = color
+        view[::, 0] = left_col  # restore edge of image
+

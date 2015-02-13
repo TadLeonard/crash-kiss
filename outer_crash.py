@@ -107,7 +107,7 @@ def run():
 
     # Various things to do with the result of our image mutations
     if args.reveal_edges:
-        outer_edge.reveal_edges(subject, args.reveal_width)
+        util.reveal_outer_edges(subject, args.reveal_width)
     if args.outfile:
         imread.imwrite(args.outfile, img)
     else:

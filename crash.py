@@ -254,13 +254,13 @@ def _process_img(img, args):
      
     # Various things to do with the result of our image mutations
     if args.reveal_foreground:
-        edge.reveal_foreground(img, fg, bounds)
+        util.reveal_foreground(img, fg, bounds)
     if args.reveal_background:
-        edge.reveal_background(img, fg, bounds)
+        util.reveal_background(img, fg, bounds)
     if args.smash:
         edge.center_smash(img, fg, bounds)
     if args.reveal_quadrants:
-        edge.reveal_quadrants(img, bounds)
+        util.reveal_quadrants(img, bounds)
     return img
 
 
