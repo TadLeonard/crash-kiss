@@ -144,7 +144,7 @@ def run_sequence(args):
         args.target, args.working_dir, args.output_suffix)
     template = os.path.join(loc, "{0}_{1}_{2:04d}.{3}")
     bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
-    max_depth = (bounds.stop - bounds.start ) // 4  # actual depth
+    max_depth = bounds.max_depth  # actual depth
     params = crash.CrashParams(
         max_depth, args.threshold, args.bg_value, args.rgb_select)
     image_steps = crash.iter_crash(img, params, stepsize)

@@ -160,7 +160,7 @@ def center_crash(img, fg, bounds):
         else:
             mov_near_collision(crash_data, row_data)
         irow[:lmov] = WHITE
-        irow[-rmov + 1:] = WHITE
+        irow[-rmov:] = WHITE
     return img
 
 
@@ -220,9 +220,11 @@ def mov_crash(crash, row):
     subj = irow[center + fg_l_stop - max_depth: center + fg_r_start + max_depth]
     subj = subj[bg_mask]
     irow[center + fg_l_stop - llen: center + fg_r_start + rlen] = subj
+    
     irow[lmov: center + fg_l_stop - llen] = (
         irow[:center + fg_l_stop - llen - lmov])
-    irow[center + fg_r_start + rlen: -rmov] = (
+    end = -rmov or irow.shape[0]
+    irow[center + fg_r_start + rlen: end] = (
         irow[center + fg_r_start + rlen + rmov:])
     return lmov, rmov
 
