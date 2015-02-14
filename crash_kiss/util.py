@@ -1,5 +1,6 @@
 """General image processing processing functions"""
 
+import os
 import imread
 from six.moves import zip
 import numpy as np
@@ -165,3 +166,22 @@ def reveal_outer_edges(subject, width):
             view[rows, cols] = color
         view[::, 0] = left_col  # restore edge of image
 
+
+def get_filename_hints(target, working_dir, out_suffix):
+    """Based on the target filename, returns a tuple of
+
+    1) the output directory
+    2) the output filename
+    3) the chosen output suffix (if `out_suffix` is None)
+    4) the output file extension (i.e. '.jpg')
+    
+    The user constructs the output file path like this:
+    `os.path.join(out_dir, "{0}_{1}.{2}".format(name, suffix, ext)`"""
+    suffix = out_suffix or DEFAULT_OUTPUT_SUFFIX
+    out_path = os.path.split(target)
+    out_name = out_path[-1]
+    out_dir = working_dir or os.path.join(*out_path[:-1])
+    out_ext = out_name.split(".")[-1]              
+    out_name = "".join(out_name.split(".")[:-1])
+    return out_dir, out_name, suffix, out_ext
+ 

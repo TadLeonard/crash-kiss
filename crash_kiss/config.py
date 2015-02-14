@@ -29,3 +29,8 @@ _config_defaults = dict(
 )
 
 
+# input, output filename configuration
+DEFAULT_OUTPUT_SUFFIX = "crashed"
+DEFAULT_INPUT_SUFFIX = ".jpg"
+DEFAULT_LATEST = "LAST_CRASH.{0}"  # to be formatted like `.format("jpg")`
+
