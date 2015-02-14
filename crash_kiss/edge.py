@@ -219,7 +219,7 @@ def center_smash(img, fg, bounds):
         else:
             mov_near_collision(smash_data, row_data)
         irow[:lmov] = WHITE
-        irow[-rmov + 1:] = WHITE
+        irow[-rmov:] = WHITE
     return img
 
 
