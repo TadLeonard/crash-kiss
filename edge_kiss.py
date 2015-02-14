@@ -1,13 +1,12 @@
 #!/usr/bin/env python
 """
-Command line entry point to `crash kiss` face smashing functions.
+Command line entry point to `crash kiss` face crashing functions.
 """
 
 from __future__ import print_function
 import argparse
 import os
 import tempfile
-import imread
 from crash_kiss import outer_edge, util, config
 
 
@@ -15,7 +14,7 @@ parser = argparse.ArgumentParser(
     description="Crash images into things",
     formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 parser.add_argument("targets", nargs="+")
-parser.add_argument("-s", "--smash", choices=("center", "side"))
+parser.add_argument("-s", "--crash", choices=("center", "side"))
 parser.add_argument("-d", "--direction", default="lr",
                     help="'ud' up-to-down and so on",
                     choices=("lr", "rl", "ud", "du"))
@@ -69,7 +68,7 @@ _orientors = dict(
 def run():
     # Parse args, combine images passed to ckiss into a single image
     args = parser.parse_args()
-    imgs = map(imread.imread, args.targets)
+    imgs = map(util.read_img, args.targets)
     if not imgs:
         parser.error("Must pass in one or more paths to images")
     elif len(imgs) == 1:
@@ -99,20 +98,20 @@ def run():
         _ = subject.edges
 
     # After this point we're always working with one big, combined image
-    if args.smash:
-        if args.smash == "center":
-            raise NotImplementedError("Can't center smash yet")
-        elif args.smash == "side":
-            outer_edge.side_smash(subject)
+    if args.crash:
+        if args.crash == "center":
+            raise NotImplementedError("Can't center crash yet")
+        elif args.crash == "side":
+            crash.outer_side_crash(subject)
 
     # Various things to do with the result of our image mutations
     if args.reveal_edges:
-        outer_edge.reveal_edges(subject, args.reveal_width)
+        util.reveal_outer_edges(subject, args.reveal_width)
     if args.outfile:
-        imread.imwrite(args.outfile, img)
+        util.save_img(args.outfile, img)
     else:
         temp = tempfile.mktemp(prefix="ckiss-", suffix=".jpg")
-        imread.imsave(temp, img)
+        util.save_img(temp, img)
         os.system(args.show_with.format(temp))
 
 
