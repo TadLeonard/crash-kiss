@@ -6,8 +6,9 @@ Crash kiss
 An image processing art project. Given an input image, this program
 
 1) tries to determine what is the foreground and what is the background
-2) smashes foreground on the left into foreground on the right
+2) crashes foreground on the left into foreground on the right
 3) optionally highlights the background and/or foreground
+4) optionally creates a sequential crash for making .gif files
 """
 
 import argparse
@@ -16,8 +17,7 @@ import glob
 import multiprocessing
 import pprint
 import time
-from crash_kiss import edge, config, util
-import imread
+from crash_kiss import foreground, config, util, crash
 
 
 _conf = config.config()   # default conf values
@@ -31,15 +31,14 @@ parser.add_argument("-b", "--bg-value", type=int,
                          "'auto' to automatically gather per-row "
                          "background values.",
                       default=_conf["bg_value"])
-parser.add_argument("-s", "--smash", action="store_true")
+parser.add_argument("-s", "--crash", action="store_true")
 parser.add_argument("-e", "--reveal-foreground", action="store_true")
 parser.add_argument("-E", "--reveal-background", action="store_true")
 parser.add_argument("-q", "--reveal-quadrants", action="store_true",
                     help="reveal the inner and outer quadrants of the "
-                         "'smashable area' with vertical lines")
+                         "'crashable area' with vertical lines")
 parser.add_argument("-t", "--threshold",
-                    help="min difference between background and foreground "
-                         "to determine an edge",
+                    help="min difference between background and foreground ",
                     default=_conf["threshold"], type=int)
 parser.add_argument("-d", "--max-depth", type=int,
                     default=_conf["max_depth"],
@@ -70,11 +69,11 @@ parser.add_argument("--sequence", type=int, default=0,
                          "--max-depth in steps of SEQUENCE size")
 parser.add_argument("--in-parallel", type=int,
                     default=multiprocessing.cpu_count(),
-                    help="generate a sequence of smashed image "
+                    help="generate a sequence of crashed image "
                          "in parallel across N processes")
 
 
-DEFAULT_OUTPUT_SUFFIX = "smashed"
+DEFAULT_OUTPUT_SUFFIX = "crashed"
 DEFAULT_INPUT_SUFFIX = ".jpg"
 DEFAULT_LATEST = "LAST_CRASH.jpg"
 
@@ -135,37 +134,37 @@ def _gen_new_files(search_dir, search_pattern):
          
 
 def run_sequence(args):
-    """Pull together `argparse` args to carry out a sequence smash.
-    Writes a series of images for a range of smash depths."""
+    """Pull together `argparse` args to carry out a sequence crash.
+    Writes a series of images for a range of crash depths."""
     target = args.target
     stepsize = args.sequence
-    img = imread.imread(target)
+    img = util.read_img(target)
     view = util.get_rgb_view(img, args.rgb_select)
     loc, name, suffix, ext = _get_filename_hints(
         args.target, args.working_dir, args.output_suffix)
     template = os.path.join(loc, "{0}_{1}_{2:04d}.{3}")
-    bounds = edge.get_fg_bounds(img.shape[1], args.max_depth)
+    bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
     max_depth = (bounds.stop - bounds.start ) // 4  # actual depth
-    params = edge.SmashParams(
+    params = crash.CrashParams(
         max_depth, args.threshold, args.bg_value, args.rgb_select)
-    image_steps = edge.iter_smash(img, params, stepsize)
+    image_steps = crash.iter_crash(img, params, stepsize)
     for img, step in image_steps:
         new_file = template.format(name, suffix, step, ext)
         util.save_img(new_file, img)
 
 
 def run_sequence_parallel(args):
-    """Carry out a sequence smash across multiple processes"""
+    """Carry out a sequence crash across multiple processes"""
     target = args.target
     stepsize = args.sequence
     loc, name, suffix, ext = _get_filename_hints(
         args.target, args.working_dir, args.output_suffix)
     tail = "{0}_{1}_{2}.{3}".format(name, suffix, "{0:04d}", ext)
     template = os.path.join(loc, tail)
-    img = imread.imread(target)
-    bounds = edge.get_fg_bounds(img.shape[1], args.max_depth)
+    img = util.read_img(target)
+    bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
     max_depth = bounds.max_depth  # actual max depth!
-    params = edge.SmashParams(
+    params = crash.CrashParams(
         max_depth, args.threshold, args.bg_value, args.rgb_select)
     depths = range(max_depth, -stepsize, -stepsize)
     depths = [d for d in depths if d > 0]
@@ -176,15 +175,15 @@ def run_sequence_parallel(args):
     depth_chunks = list(_chunks(depths, n_procs))
     task_chunks = [(target, params, template, d_chunk)
                    for d_chunk in depth_chunks]
-    pool.map(_run_parallel_smash, task_chunks)
-    print("Smashed {0} images in {1:0.1f} seconds".format(
+    pool.map(_run_parallel_crash, task_chunks)
+    print("Crashed {0} images in {1:0.1f} seconds".format(
           len(depths), time.time() - start))
 
 
-def _run_parallel_smash(args):
+def _run_parallel_crash(args):
     """Unapacks args for use in call to `pool.map`"""
     # unpacks args for `pool.map` usage
-    edge.parallel_smash(*args)
+    crash.parallel_crash(*args)
 
 
 def _chunks(things, n_chunks):
@@ -236,7 +235,7 @@ def _get_filename_hints(target, working_dir, out_suffix):
 def _process_and_save(target_file, output_file, args, save_latest=False):
     """Processes an image ad saves the rusult. Optionally saves the result
     twice (once to DEFAULT_SMASH.jpg) for convenience in the photo booth."""
-    img = imread.imread(target_file)
+    img = util.read_img(target_file)
     new_img = _process_img(img, args)
     util.save_img(output_file, new_img)
     if save_latest:
@@ -248,17 +247,17 @@ def _process_and_save(target_file, output_file, args, save_latest=False):
 def _process_img(img, args):
     """Does none or more of several things to `img` based on the given
     `argparse` args."""
-    params = edge.SmashParams(
+    params = crash.CrashParams(
         args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
-    fg, bounds = edge.find_foreground(img, params)
+    fg, bounds = foreground.find_foreground(img, params)
      
     # Various things to do with the result of our image mutations
     if args.reveal_foreground:
         util.reveal_foreground(img, fg, bounds)
     if args.reveal_background:
         util.reveal_background(img, fg, bounds)
-    if args.smash:
-        crash.center_smash(img, fg, bounds)
+    if args.crash:
+        crash.center_crash(img, fg, bounds)
     if args.reveal_quadrants:
         util.reveal_quadrants(img, bounds)
     return img

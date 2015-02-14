@@ -8,15 +8,10 @@ a part of the 'foreground' if ANY of R, G, or B is different enough than
 `bg_value`. In other words, 
 `is_foreground = any(color - threshold > threshold for color in pixel)"""
 
-from __future__ import division, print_function
+from __future__ import division
 from collections import namedtuple
-from itertools import repeat
-import os
-import sys
-import time
 from crash_kiss.config import BLACK, WHITE, FULL_DEPTH
-import crash_kiss.util as util
-import imread
+from crash_kiss import util
 import numpy as np
 from six.moves import range
 
@@ -84,7 +79,7 @@ _fg_bounds = namedtuple("fg_bounds", "start stop fg_mid max_depth")
 
 
 def get_fg_bounds(img_width, max_depth):
-    """Returns start, stop idx of the 'smashable foreground'
+    """Returns start, stop idx of the 'crashable foreground'
     area in the middle of an image.
 
     Indexing the image with `img[:, start:stop]` will successfully

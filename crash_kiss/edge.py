@@ -6,7 +6,7 @@ import numpy as np
 from six.moves import range
 from crash_kiss import util
 from crash_kiss.config import config, AUTO
-from crash_kiss import edge
+from crash_kiss import foreground
 
 
 side_names = "left", "right", "up", "down"
@@ -191,7 +191,7 @@ def get_edge(img, background, config):
     # 3) calling np.all across the whole ndarray
     # 4) repeatedly creating slice views of the whole ndarray
     # argmax is relatively cheap
-    bg = edge.simplify_background(background, config)
+    bg = foreground.simplify_background(background, config)
     threshold = config["threshold"]
     bg_is_array = isinstance(bg, np.ndarray)
     found_edge = np.zeros(img.shape[0], dtype=np.uint16)
@@ -200,7 +200,7 @@ def get_edge(img, background, config):
         for img_slice, start, stop in _row_slices(img_chunk, found_edge):
             if bg_is_array:
                 bg = background[start: stop]
-            fg = edge.compare_background(img_slice, bg, threshold)
+            fg = foreground.compare_background(img_slice, bg, threshold)
             sub_edge = np.argmax(fg, axis=1)
             nz_sub_edge = sub_edge != 0
             sub_edge[nz_sub_edge] += prev_idx
@@ -249,30 +249,5 @@ def _get_contiguous_slice(img, z_edge, offset):
             stop += 1
     return img[start: stop], start, stop
 
-
-def side_smash(subject, out=None, target_edge=None):
-    """Mutates a numpy array of an image so that the subject is smashed up
-    against one of the image's borders. The left (relative to the subject)
-    border is used, so the caller must provide a properly flipped or rotated
-    view of the image array to smash the subject against the desired
-    border."""
-    view = subject.left.view
-    if out is None:
-        out = view
-    if target_edge is None:
-        target_edge = np.zeros(out.shape[0])
-    subject_width = view.shape[1]
-    l_edge = subject.left.edge
-    bg_side = subject.right or subject.left
-    bg = bg_side.background
-    n_cols = view.shape[1]
-    bg_edge = (n_cols - l_edge) + target_edge
-    zipped = zip(out, l_edge, bg_edge, bg, target_edge)
-    for row, l_idx, bg_idx, bg, target_idx in zipped:
-        if not l_idx:
-            continue
-        row[target_idx: bg_idx] = row[l_idx: subject_width]
-        row[bg_idx: subject_width] = bg
- 
 
 

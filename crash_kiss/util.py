@@ -3,6 +3,11 @@
 import imread
 from six.moves import zip
 import numpy as np
+from crash_kiss.config import BLACK
+
+
+def read_img(file_name):
+    return imread.imread(file_name)
 
 
 def save_img(file_name, img):
