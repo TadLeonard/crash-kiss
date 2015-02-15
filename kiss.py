@@ -20,7 +20,6 @@ import time
 from crash_kiss import foreground, config, util, crash
 
 
-_conf = config.config()   # default conf values
 parser = argparse.ArgumentParser(
 	description=__doc__,
 	formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -30,7 +29,7 @@ parser.add_argument("-b", "--bg-value", type=int,
                          "should the user want to manually set it. Use "
                          "'auto' to automatically gather per-row "
                          "background values.",
-                      default=_conf["bg_value"])
+                      default=config.BG_VALUE)
 parser.add_argument("-s", "--crash", action="store_true")
 parser.add_argument("-e", "--reveal-foreground", action="store_true")
 parser.add_argument("-E", "--reveal-background", action="store_true")
@@ -39,13 +38,13 @@ parser.add_argument("-q", "--reveal-quadrants", action="store_true",
                          "'crashable area' with vertical lines")
 parser.add_argument("-t", "--threshold",
                     help="min difference between background and foreground ",
-                    default=_conf["threshold"], type=int)
+                    default=config.THRESHOLD, type=int)
 parser.add_argument("-d", "--max-depth", type=int,
-                    default=_conf["max_depth"],
+                    default=config.MAX_DEPTH,
                     help="Max number of pixels that the left and right "
                          "subjects will smoosh into each other. Neither face "
                          "will collapse by more than max_depth")
-parser.add_argument("-r", "--rgb-select", default=_conf["rgb_select"],
+parser.add_argument("-r", "--rgb-select", default=config.RGB_SELECT,
                     type=lambda x: sorted(map(int, x.split(","))),
                     help="Find edges based on a subset of RGB(A?) by "
                          "passing a comma-sep list of indices")
@@ -86,9 +85,9 @@ def main():
 def run_auto(args):
     """Automatic photo booth mode! Monitors a directory for new files
     and processes them automatically until SIGINT."""
-    input_suffix = args.search_suffix or config.DEFAULT_INPUT_SUFFIX
+    input_suffix = args.search_suffix or config.INPUT_SUFFIX
     input_dir = args.working_dir or os.getcwd()
-    output_suffix = args.output_suffix or config.DEFAULT_OUTPUT_SUFFIX
+    output_suffix = args.output_suffix or config.OUTPUT_SUFFIX
     input_files = gen_new_files(input_dir, input_suffix)
     try:
         _auto_run_loop(output_suffix, input_files, args)
@@ -188,13 +187,13 @@ def run_once(args):
 
 def _process_and_save(target_file, output_file, args, save_latest=False):
     """Processes an image ad saves the rusult. Optionally saves the result
-    twice (once to DEFAULT_SMASH.jpg) for convenience in the photo booth."""
+    twice (once to LAST_CRASH.jpg) for convenience in the photo booth."""
     img = util.read_img(target_file)
     new_img = _process_img(img, args)
     util.save_img(output_file, new_img)
     if save_latest:
         ext = output_file.split(".")[-1]
-        util.save_img(config.DEFAULT_LATEST.format(ext), new_img)
+        util.save_img(config.LAST_CRASH.format(ext), new_img)
 
 
 def _process_img(img, args):

@@ -177,7 +177,7 @@ def get_filename_hints(target, working_dir, out_suffix):
     
     The user constructs the output file path like this:
     `os.path.join(out_dir, "{0}_{1}.{2}".format(name, suffix, ext)`"""
-    suffix = out_suffix or config.DEFAULT_OUTPUT_SUFFIX
+    suffix = out_suffix or config.OUTPUT_SUFFIX
     out_path = os.path.split(target)
     out_name = out_path[-1]
     out_dir = working_dir or os.path.join(*out_path[:-1])
