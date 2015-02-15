@@ -78,10 +78,7 @@ def main():
     if args.auto_run:
         run_auto(args)
     elif args.sequence:
-        if args.in_parallel == 1:
-            run_sequence(args)
-        else:
-            run_sequence_parallel(args)
+        run_sequence(args)
     else:
         run_once(args)
         
@@ -129,27 +126,7 @@ def _gen_new_files(search_dir, search_pattern):
          
 
 def run_sequence(args):
-    """Pull together `argparse` args to carry out a sequence crash.
-    Writes a series of images for a range of crash depths."""
-    target = args.target
-    stepsize = args.sequence
-    img = util.read_img(target)
-    view = util.get_rgb_view(img, args.rgb_select)
-    loc, name, suffix, ext = util.get_filename_hints(
-        args.target, args.working_dir, args.output_suffix)
-    template = os.path.join(loc, "{0}_{1}_{2:04d}.{3}")
-    bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
-    max_depth = bounds.max_depth  # actual depth
-    params = crash.CrashParams(
-        max_depth, args.threshold, args.bg_value, args.rgb_select)
-    image_steps = crash.iter_crash(img, params, stepsize)
-    for img, step in image_steps:
-        new_file = template.format(name, suffix, step, ext)
-        util.save_img(new_file, img)
-
-
-def run_sequence_parallel(args):
-    """Carry out a sequence crash across multiple processes"""
+    """Carry out a sequence crash (optionally across multiple processes)"""
     start = time.time()  # keep track of total duration
     target = args.target
     stepsize = args.sequence
@@ -161,18 +138,23 @@ def run_sequence_parallel(args):
     depths = range(max_depth, -stepsize, -stepsize)
     depths = [d for d in depths if d > 0]
     depths.append(0)
-    n_procs = args.in_parallel
+    n_procs = max(args.in_parallel, 1)
     counter = multiprocessing.RawValue("i", len(depths))
     depth_chunks = list(_chunks(depths, n_procs))
     working_dir, output_suffix = args.working_dir, args.output_suffix
     basic_args = (target, working_dir, output_suffix, crash_params, counter)
     task_chunks = [basic_args + (d_chunk,) for d_chunk in depth_chunks]
-    task_chunks = [crash.ParallelParams(*args) for args in task_chunks]
-    procs = [multiprocessing.Process(
-                target=crash.parallel_crash, args=(params,))
-             for params in task_chunks]
-    map(multiprocessing.Process.start, procs)
-    map(multiprocessing.Process.join, procs)
+    task_chunks = [crash.SequenceParams(*args) for args in task_chunks]
+
+    if n_procs > 1:
+        procs = [multiprocessing.Process(
+                    target=crash.sequence_crash, args=(params,))
+                 for params in task_chunks]
+        map(multiprocessing.Process.start, procs)
+        map(multiprocessing.Process.join, procs)
+    else:
+        map(crash.sequence_crash, task_chunks)
+
     print("Crashed {0} images in {1:0.1f} seconds".format(
           len(depths), time.time() - start))
 
@@ -213,7 +195,6 @@ def _process_and_save(target_file, output_file, args, save_latest=False):
     if save_latest:
         ext = output_file.split(".")[-1]
         util.save_img(config.DEFAULT_LATEST.format(ext), new_img)
-
 
 
 def _process_img(img, args):

@@ -42,43 +42,15 @@ class CrashParams(object):
         for param_name in self._params:
             yield self.__dict__[param_name]
 
-def iter_crash(img, params, stepsize=1):
-    """Yield control to another function for each iteration of a crash.
-    Each time the image is yeilded, the crash progresses by `stepsize`"""
-    start = time.time()
-    fg, bounds = foreground.find_foreground(img, params) # initial BG mask
-    max_depth = bounds.max_depth
-    yield center_crash(img.copy(), fg, bounds), max_depth  # deepest crash
 
-    # We'll create a background mask (i.e. the foreground selection) with
-    # the same shape as the image. This lets us calculate the entire 
-    # foreground just once and slice it down to size for each iteration
-    # of the crash. This saves lots of CPU cycles.
-    total_fg = np.zeros(
-        shape=img.shape[:2], dtype=bool)  # 2D mask with same dims as img
-    total_fg[:, bounds.start: bounds.stop] = fg
-    
-    print("Processing...")
-    depths = range(max_depth - stepsize, 0, -stepsize)
-    n_crashes = len(depths)
-    for i, depth in enumerate(depths):
-        yield _crash_at_depth(img, total_fg, depth), depth
-        remaining = n_crashes - i - 1
-        print("Remaining: {0:04d}\r".format(remaining), end="")
-        sys.stdout.flush()
-    yield img, 0  # shallowest crash (just the original image)
-    print("{0} images in {1:0.1f} seconds".format(
-          len(depths) + 2, time.time() - start))
-
-
-class ParallelParams(CrashParams):
+class SequenceParams(CrashParams):
     """A picklable record to pass to `parallel_crash` for running a
     crash over multiple processes"""
     _params = ("target working_dir output_suffix crash_params "
                "counter depths".split())
 
 
-def parallel_crash(params):
+def sequence_crash(params):
     """Given an input filename `target`, a `CrashParams` instance,
     and an iterable of `depths`, write a crashed version of the target
     image to the disk for each depth."""
@@ -285,5 +257,3 @@ def outer_side_crash(subject, out=None, target_edge=None):
         row[target_idx: bg_idx] = row[l_idx: subject_width]
         row[bg_idx: subject_width] = bg
  
-
-
