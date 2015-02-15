@@ -60,9 +60,11 @@ def iter_crash(img, params, stepsize=1):
     
     print("Processing...")
     depths = range(max_depth - stepsize, 0, -stepsize)
-    for depth in depths:
+    n_crashes = len(depths)
+    for i, depth in enumerate(depths):
         yield _crash_at_depth(img, total_fg, depth), depth
-        print("Depth: {0:04d}\r".format(depth), end="")
+        remaining = n_crashes - i - 1
+        print("Remaining: {0:04d}\r".format(remaining), end="")
         sys.stdout.flush()
     yield img, 0  # shallowest crash (just the original image)
     print("{0} images in {1:0.1f} seconds".format(
@@ -73,7 +75,7 @@ class ParallelParams(CrashParams):
     """A picklable record to pass to `parallel_crash` for running a
     crash over multiple processes"""
     _params = ("target working_dir output_suffix crash_params "
-               "counter lock depths".split())
+               "counter depths".split())
 
 
 def parallel_crash(params):
@@ -97,7 +99,7 @@ def parallel_crash(params):
     max_depth = params.depths[0]
     first_img = center_crash(img.copy(), fg, bounds)
     util.save_img(template.format(max_depth), first_img)
-    _print_count(params.counter, params.lock)
+    _print_count(params.counter)
 
     # We'll create a background mask (i.e. the foreground selection) with
     # the same shape as the image. This lets us calculate the entire 
@@ -112,17 +114,16 @@ def parallel_crash(params):
         else:
             crashed = _crash_at_depth(img, total_fg, depth)
         util.save_img(template.format(depth), crashed)
-        _print_count(params.counter, params.lock)
+        _print_count(params.counter)
         
     print("Worker process crashed {0} images in {1:0.1f} seconds".format(
           len(params.depths), time.time() - start))
 
 
-def _print_count(counter, lock):
-    with lock:
-        counter.value -= 1
-        print("Remaining: {0:04d}\r".format(counter.value), end="")
-        sys.stdout.flush()
+def _print_count(counter):
+    counter.value -= 1
+    print("Remaining: {0:04d}\r".format(counter.value), end="")
+    sys.stdout.flush()
 
 
 def _crash_at_depth(img, total_fg, depth):

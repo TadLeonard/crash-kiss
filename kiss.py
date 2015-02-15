@@ -163,11 +163,9 @@ def run_sequence_parallel(args):
     depths.append(0)
     n_procs = args.in_parallel
     counter = multiprocessing.RawValue("i", len(depths))
-    lock = multiprocessing.Lock()
     depth_chunks = list(_chunks(depths, n_procs))
     working_dir, output_suffix = args.working_dir, args.output_suffix
-    basic_args = (target, working_dir, output_suffix, crash_params,
-                  counter, lock)
+    basic_args = (target, working_dir, output_suffix, crash_params, counter)
     task_chunks = [basic_args + (d_chunk,) for d_chunk in depth_chunks]
     task_chunks = [crash.ParallelParams(*args) for args in task_chunks]
     procs = [multiprocessing.Process(
