@@ -4,7 +4,7 @@ import os
 import imread
 from six.moves import zip
 import numpy as np
-from crash_kiss.config import BLACK
+from crash_kiss import config
 
 
 def read_img(file_name):
@@ -120,7 +120,7 @@ def reveal_foreground(img, foreground, bounds):
     start, stop, fg_mid, max_depth = bounds
     critical_fg = foreground[:, max_depth: -max_depth]
     img[:, start: stop][foreground] = PURPLE
-    img[:, start + max_depth: stop - max_depth][critical_fg] = BLACK
+    img[:, start + max_depth: stop - max_depth][critical_fg] = config.BLACK
 
 
 def reveal_quadrants(img, bounds):
@@ -177,7 +177,7 @@ def get_filename_hints(target, working_dir, out_suffix):
     
     The user constructs the output file path like this:
     `os.path.join(out_dir, "{0}_{1}.{2}".format(name, suffix, ext)`"""
-    suffix = out_suffix or DEFAULT_OUTPUT_SUFFIX
+    suffix = out_suffix or config.DEFAULT_OUTPUT_SUFFIX
     out_path = os.path.split(target)
     out_name = out_path[-1]
     out_dir = working_dir or os.path.join(*out_path[:-1])

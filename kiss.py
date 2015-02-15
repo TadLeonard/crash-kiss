@@ -150,31 +150,33 @@ def run_sequence(args):
 
 def run_sequence_parallel(args):
     """Carry out a sequence crash across multiple processes"""
+    start = time.time()  # keep track of total duration
     target = args.target
     stepsize = args.sequence
     img = util.read_img(target)
     bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
-    max_depth = bounds.max_depth  # actual max depth!
-    params = crash.CrashParams(
+    max_depth = bounds.max_depth
+    crash_params = crash.CrashParams(
         max_depth, args.threshold, args.bg_value, args.rgb_select)
     depths = range(max_depth, -stepsize, -stepsize)
     depths = [d for d in depths if d > 0]
     depths.append(0)
     n_procs = args.in_parallel
-    pool = multiprocessing.Pool(n_procs)
-    start = time.time()
+    counter = multiprocessing.RawValue("i", len(depths))
+    lock = multiprocessing.Lock()
     depth_chunks = list(_chunks(depths, n_procs))
-    task_chunks = [(target, params, template, d_chunk)
-                   for d_chunk in depth_chunks]
-    pool.map(_run_parallel_crash, task_chunks)
+    working_dir, output_suffix = args.working_dir, args.output_suffix
+    basic_args = (target, working_dir, output_suffix, crash_params,
+                  counter, lock)
+    task_chunks = [basic_args + (d_chunk,) for d_chunk in depth_chunks]
+    task_chunks = [crash.ParallelParams(*args) for args in task_chunks]
+    procs = [multiprocessing.Process(
+                target=crash.parallel_crash, args=(params,))
+             for params in task_chunks]
+    map(multiprocessing.Process.start, procs)
+    map(multiprocessing.Process.join, procs)
     print("Crashed {0} images in {1:0.1f} seconds".format(
           len(depths), time.time() - start))
-
-
-def _run_parallel_crash(args):
-    """Unapacks args for use in call to `pool.map`"""
-    # unpacks args for `pool.map` usage
-    crash.parallel_crash(*args)
 
 
 def _chunks(things, n_chunks):
