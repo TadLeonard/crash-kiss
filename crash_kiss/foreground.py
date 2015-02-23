@@ -71,6 +71,9 @@ def simplify_background(background, config):
 
     
 def get_foreground_area(img, max_depth):
+    """Make a slice of the middle of the image based on `max_depth`.
+    Returns a view of the middle section of `img` and a `namedtuple`
+    of `start, stop, fg_mid, max_depth` integers."""
     bounds = get_fg_bounds(img.shape[1], max_depth)
     return img[:, bounds.start: bounds.stop], bounds
 
