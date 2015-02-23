@@ -21,100 +21,9 @@ from crash_kiss.config import WHITE
 # the no-fg-at-all case. This is because `np.argmax` returns 0 if the max
 # value has index 0 (whether that max value is 0 or 1 or anything else!).
 _MID_FG = 0xFFFF  # placeholder index for foreground data at the center
-_params = "max_depth threshold bg_value rgb_select".split()
-
-
-class CrashParams(object):
-    """A **picklable** container of values that can be sent to 
-    a `multiprocessing.Process` object. Usually a `namedtuple` or some
-    other simple container would be better, but `namedtuple` is not 
-    picklable!"""
-
-    def __init__(self, *args, **kwargs):
-        given_args = dict(zip(_params, repeat(None)))
-        for name, value in zip(_params, args):
-            given_args[name] = value
-        for name, value in kwargs.items():  
-            given_args[name] = value
-        self.__dict__.update(given_args)
-
-
-def iter_crash(img, params, stepsize=1):
-    """Yield control to another function for each iteration of a crash.
-    Each time the image is yeilded, the crash progresses by `stepsize`"""
-    start = time.time()
-    fg, bounds = foreground.find_foreground(img, params) # initial BG mask
-    max_depth = bounds.max_depth
-    yield center_crash(img.copy(), fg, bounds), max_depth  # deepest crash
-
-    # We'll create a background mask (i.e. the foreground selection) with
-    # the same shape as the image. This lets us calculate the entire 
-    # foreground just once and slice it down to size for each iteration
-    # of the crash. This saves lots of CPU cycles.
-    total_fg = np.zeros(
-        shape=img.shape[:2], dtype=bool)  # 2D mask with same dims as img
-    total_fg[:, bounds.start: bounds.stop] = fg
-    
-    print("Processing...")
-    depths = range(max_depth - stepsize, 0, -stepsize)
-    for depth in depths:
-        yield _crash_at_depth(img, total_fg, depth), depth
-        print("Depth: {0:04d}\r".format(depth), end="")
-        sys.stdout.flush()
-    yield img, 0  # shallowest crash (just the original image)
-    print("{0} images in {1:0.1f} seconds".format(
-          len(depths) + 2, time.time() - start))
-
-
-def parallel_crash(target, params, template, depths):
-    """Given an input filename, `target`, a `CrashParams` instance,
-    a `template` for output filenames, and an iterable of `depths`, write
-    a crashed version of the target image to the disk for each depth.
-    """
-    # The images are *written* and not returned or yielded because it's not
-    # efficient to pass huge n-dimensional arrays between processes. Each
-    # process reads its own copy of the target image from the disk and writes
-    # its own crashed output files to the disk. In my tests, the program is
-    # mostly limited by disk IO (even on SSDs). While each additional process
-    # below cpu_count() improves performance, it's usually not by huge amounts.
-    start = time.time()
-    img = imread.imread(target)
-    fg, bounds = foreground.find_foreground(img, params)  # initial BG mask
-    max_depth = depths[0]
-    first_img = center_crash(img.copy(), fg, bounds)
-    util.save_img(template.format(max_depth), first_img)
-
-    # We'll create a background mask (i.e. the foreground selection) with
-    # the same shape as the image. This lets us calculate the entire 
-    # foreground just once and slice it down to size for each iteration
-    # of the crash. Not having to recalculate the foreground each time
-    # saves lots of CPU cycles. 
-    total_fg = np.zeros(
-        shape=img.shape[:2], dtype=bool)  # 2D mask with same dims as img
-    total_fg[:, bounds.start: bounds.stop] = fg
-    for depth in depths[1:]:
-        if depth == 0:
-            crashed = img
-        else:
-            crashed = _crash_at_depth(img, total_fg, depth)
-        util.save_img(template.format(depth), crashed)
-        
-    print("Worker process crashed {0} images in {1:0.1f} seconds".format(
-          len(depths), time.time() - start))
-
-
-def _crash_at_depth(img, total_fg, depth):
-    """Select a subset of the complete background mask (the foreground)
-    and crash that subset of pixels by `depth`"""
-    fg, bounds = foreground.get_foreground_area(total_fg, depth)
-    crashed_img = center_crash(img.copy(), fg, bounds)
-    return crashed_img
-
-
-_crash_data = namedtuple("sdata", "start stop fg_mid "
-                                  "max_depth fg_l fg_r "
-                                  "mid_left center mid_right "
-                                  "side_len")
+_crash_data = namedtuple(
+    "sdata", "start stop fg_mid max_depth fg_l fg_r "
+             "mid_left center mid_right side_len")
 _row_data = namedtuple("row", "irow ls rs frow")
 
 
@@ -190,6 +99,8 @@ def mov_right_overshoot(crash, row):
 
 
 def mov_crash(crash, row):
+    """Crash a row towards the center for the case where
+    the foreground on either side of the image will make contact"""
     fg_mid = crash.fg_mid
     center = crash.center
     max_depth = crash.max_depth
@@ -238,29 +149,82 @@ def mov_near_collision(crash, row):
     irow[center + rs - depth: -depth] = irow[center + rs:]
 
 
-def outer_side_crash(subject, out=None, target_edge=None):
-    """Mutates a numpy array of an image so that the subject is crashed up
-    against one of the image's borders. The left (relative to the subject)
-    border is used, so the caller must provide a properly flipped or rotated
-    view of the image array to crash the subject against the desired
-    border."""
-    view = subject.left.view
-    if out is None:
-        out = view
-    if target_edge is None:
-        target_edge = np.zeros(out.shape[0])
-    subject_width = view.shape[1]
-    l_edge = subject.left.edge
-    bg_side = subject.right or subject.left
-    bg = bg_side.background
-    n_cols = view.shape[1]
-    bg_edge = (n_cols - l_edge) + target_edge
-    zipped = zip(out, l_edge, bg_edge, bg, target_edge)
-    for row, l_idx, bg_idx, bg, target_idx in zipped:
-        if not l_idx:
-            continue
-        row[target_idx: bg_idx] = row[l_idx: subject_width]
-        row[bg_idx: subject_width] = bg
- 
+class CrashParams(object):
+    """A **picklable** container of values that can be sent to 
+    a `multiprocessing.Process` object. Usually a `namedtuple` or some
+    other simple container would be better, but `namedtuple` is not 
+    picklable!"""
+    _params = "max_depth threshold bg_value rgb_select".split()
 
+    def __init__(self, *args, **kwargs):
+        given_args = dict(zip(self._params, repeat(None)))
+        for name, value in zip(self._params, args):
+            given_args[name] = value
+        for name, value in kwargs.items():  
+            given_args[name] = value
+        self.__dict__.update(given_args)
+
+    def __iter__(self):
+        for param_name in self._params:
+            yield self.__dict__[param_name]
+
+
+class SequenceParams(CrashParams):
+    """A picklable record to pass to `parallel_crash` for running a
+    crash over multiple processes"""
+    _params = ("target working_dir output_suffix crash_params "
+               "counter depths".split())
+
+
+def sequence_crash(params):
+    """Given an input filename `target`, a `CrashParams` instance,
+    and an iterable of `depths`, write a crashed version of the target
+    image to the disk for each depth."""
+    # The images are *written* and not returned or yielded because it's not
+    # efficient to pass huge n-dimensional arrays between processes. Each
+    # process reads its own copy of the target image from the disk and writes
+    # its own crashed output files to the disk. In my tests, the program is
+    # mostly limited by disk IO (even on SSDs). While each additional process
+    # below cpu_count() improves performance, it's usually not by huge amounts.
+    start = time.time()  # keep track of duration to show how cool we are
+
+    loc, name, suffix, ext = util.get_filename_hints(
+        params.target, params.working_dir, params.output_suffix)
+    tail = "{0}_{1}_{2}.{3}".format(name, suffix, "{0:04d}", ext)
+    template = os.path.join(loc, tail)
+    img = imread.imread(params.target)
+    fg, bounds = foreground.find_foreground(img, params.crash_params)
+    max_depth = params.depths[0]
+    first_img = center_crash(img.copy(), fg, bounds)
+    util.save_img(template.format(max_depth), first_img)
+    _print_count(params.counter)
+
+    # We'll create a background mask (i.e. the foreground selection) with
+    # the same shape as the image. This lets us calculate the entire 
+    # foreground just once and slice it down to size for each iteration
+    # of the crash. Not having to recalculate the foreground each time
+    # saves lots of CPU cycles. 
+    total_fg = np.zeros(shape=img.shape[:2], dtype=bool)  # a 2D mask
+    total_fg[:, bounds.start: bounds.stop] = fg
+    for depth in params.depths[1:]:
+        if depth == 0:
+            crashed = img
+        else:
+            crashed = _crash_at_depth(img, total_fg, depth)
+        util.save_img(template.format(depth), crashed)
+        _print_count(params.counter)
+        
+
+def _print_count(counter):
+    counter.value -= 1
+    print("Remaining: {0:04d}\r".format(counter.value), end="")
+    sys.stdout.flush()
+
+
+def _crash_at_depth(img, total_fg, depth):
+    """Select a subset of the complete background mask (the foreground)
+    and crash that subset of pixels by `depth`"""
+    fg, bounds = foreground.get_foreground_area(total_fg, depth)
+    crashed_img = center_crash(img.copy(), fg, bounds)
+    return crashed_img
 
