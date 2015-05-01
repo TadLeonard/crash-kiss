@@ -1,11 +1,12 @@
-Crash Kiss: an art project automated
-====================================
-This project is an automated version of Rollin Leonard's 2013 artwork called Crash Kiss. Take a look at a [sample](http://rollinleonard.com/projects/2013/crashKiss-guthrieEllis/) of the original work.
+Crash Kiss: automatated intimacy
+================================
+This project is an automation of [Rollin Leonard](http://rollinleonard.com)'s 2013 artwork called *Crash Kiss*. Take a look at a [sample](http://rollinleonard.com/projects/2013/crashKiss-guthrieEllis/) of the original work.
 
-Rollin's work was done very carefully and *slowly* in Photoshop. This project alleviates the burden of having to carefully move individual rows of pixels around to get the "crash kiss" effect. Rollin gets to focus on finding good subjects, taking good photos, and presenting the resulting "crash kisses" in compelling ways.
+Rollin's work was done very carefully and *slowly* in Photoshop. He needed a tool to remove the burden of laboriously moving individual rows of pixels around to get the "crash kiss" effect. With this tool, Rollin gets to focus on finding good subjects, taking good photos, and presenting the resulting "crash kisses" in compelling ways.
 
-The process
------------
+
+The crash kiss process
+----------------------
 Given an image of two people facing each other:
 
 1. Find the foreground of the image (i.e. pixels that are not like the background)
@@ -15,28 +16,25 @@ Given an image of two people facing each other:
 
 Goals, challenges
 -----------------
-The project is finished and each of these goals have been met.
-
-1. Easy installation on Ubuntu and Windows.
+1. Easy installation on Windows. If Rollin can't install it on his own, it's not easy enough.
 2. No strange dependencies. Only common libraries like `numpy` should be used. In general, if there isn't a Windows binary on [Christoph Gohlke's page](http://www.lfd.uci.edu/~gohlke/pythonlibs/), it's not appropriate for this project.
-3. Easily tuned from the command line. Parameters like the threshold (difference between the foreground and background), max depth (number of pixels by which faces are smashed into each other), and so on must be variable.
-4. Fast enough. Must be fast enough to generate images in the field in a photo booth configuration. Must also be fast enough to generate 1000-image .gif files (where each frame is a 4K image!) in a reasonable amount of time (i.e. minutes, not hours).
-5. Accurate and behaves in the spirit of the original art.
+3. Easily tuned from the command line. Parameters like the `threshold` (difference between the foreground and background), `max depth` (number of pixels by which faces are smashed towards each other), and so on must be variable.
+4. Fast enough. Must be fast enough to generate images in the field in a photo booth configuration. Must also be fast enough to generate 1000-image .gif files (where each frame is a 4K image!) in a reasonable amount of time.
+5. Must be accurate and it absolutely must produce images that are in the spirit of the original art.
 
 Getting started
 ---------------
-
 On Windows
 ##########
 1. Install [Anaconda](https://store.continuum.io/cshop/anaconda/)
 2. Download the appropriate wheel file of [imread](https://github.com/luispedro/imread) from [Christoph's page](http://www.lfd.uci.edu/~gohlke/pythonlibs/#imread)
 3. Install the .whl file with `pip install <path to file>`
-4. Clone https://github.com/TadLeonard/crash_kiss.git
+4. Clone `https://github.com/TadLeonard/crash_kiss.git`
 5. Run `python ckiss.py [options]`
 
 On Linux
 ########
 1. Run `pip install numpy imread`
-2. Clone https://github.com/TadLeonard/crash_kiss.git
+2. Clone `https://github.com/TadLeonard/crash_kiss.git`
 3. Run `python ckiss.py [options]`
 
