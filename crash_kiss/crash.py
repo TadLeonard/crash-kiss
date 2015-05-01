@@ -10,7 +10,6 @@ import os
 import sys
 import time
 import numpy as np
-import imread
 from six.moves import zip, range
 from crash_kiss import util, foreground
 from crash_kiss.config import WHITE
@@ -192,7 +191,7 @@ def sequence_crash(params):
         params.target, params.working_dir, params.output_suffix)
     tail = "{0}_{1}_{2}.{3}".format(name, suffix, "{0:04d}", ext)
     template = os.path.join(loc, tail)
-    img = imread.imread(params.target)
+    img = util.read_img(params.target)
     fg, bounds = foreground.find_foreground(img, params.crash_params)
     max_depth = params.depths[0]
     first_img = center_crash(img.copy(), fg, bounds)
