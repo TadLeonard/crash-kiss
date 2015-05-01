@@ -74,6 +74,8 @@ parser.add_argument("--in-parallel", type=int,
 
 def main():
     args = parser.parse_args()
+    if not args.target and not args.auto_run:
+        parser.error("Specify a target image or use -a/--auto-run mode")
     if args.auto_run:
         run_auto(args)
     elif args.sequence:
