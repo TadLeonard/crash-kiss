@@ -30,11 +30,11 @@ On Windows
 2. Download the appropriate wheel file of [imread](https://github.com/luispedro/imread) from [Christoph's page](http://www.lfd.uci.edu/~gohlke/pythonlibs/#imread)
 3. Install the .whl file with `pip install <path to file>`
 4. Clone `https://github.com/TadLeonard/crash_kiss.git`
-5. Run `python ckiss.py [options]`
+5. Run `python kiss.py [options]`
 
 On Linux
 ########
 1. Run `pip install numpy imread`
 2. Clone `https://github.com/TadLeonard/crash_kiss.git`
-3. Run `python ckiss.py [options]`
+3. Run `python kiss.py [options]`
 
