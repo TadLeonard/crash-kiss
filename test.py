@@ -4,7 +4,7 @@ import itertools
 import imread
 import numpy as np
 import pytest
-from crash_kiss import crash, edge, foreground, util
+from crash_kiss import util, foreground, crash
 import kiss
 
 
@@ -169,10 +169,11 @@ def _row(data, max_depth=None):
 
 def _ints(data):
     """Remove spaces, convert to list of ints"""
-    return map(int, data.replace(" ", ""))
+    return list(map(int, data.replace(" ", "")))
 
 
 def _clear(crash_data, row_data):
     depth = crash_data.max_depth
     row_data.irow[:depth] = 0
     row_data.irow[-depth + 1:] = 0
+
