@@ -136,7 +136,21 @@ def test_center_crash_mov_near_collision():
     print("".join(map(str, row_data.irow)))
     assert np.all(row_data.irow == data_out)
 
+
+def test_double_overshoot():
+    """Make sure things don't get compeltely messed up when we
+    have both subjects overshooting the center"""
+    data_in =  _ints("00000 00010 21330 10000 00000")
+    data_out = _ints("00000 00001 21331 00000 00000")
+    crash_data, row_data = _row(data_in, 3)  # restricted depth
+    assert np.all(row_data.irow == data_in)  # just a sanity check
+    crash.mov_near_collision(crash_data, row_data)  # crash the row
+    _clear(crash_data, row_data)
+    print("".join(map(str, row_data.irow)))
+    print("".join(map(str, data_out)))
+    assert np.all(row_data.irow == data_out)
    
+
 def _row(data, max_depth=None):
     """Make a `crash._row_data` namedtuple instance based on a list of 
     ones (or other numbers) and zeros to represent a background mask
@@ -152,7 +166,6 @@ def _row(data, max_depth=None):
     fg_l = fg_mid - max_depth
     fg_r = fg_mid + max_depth
     mid_left = start + max_depth
-    center = start + 2 * max_depth
     center = start + 2 * max_depth
     mid_right = center + max_depth
     side_len = max_depth * 2
