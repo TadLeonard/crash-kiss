@@ -26,7 +26,7 @@ _crash_data = namedtuple(
 _row_data = namedtuple("row", "irow ls rs frow")
 
 
-#@profile
+@profile
 def center_crash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
@@ -53,8 +53,8 @@ def center_crash(img, fg, bounds):
     lnil = lstart == 0
     rnil = rstart == 0
     rows_empty = np.logical_and(lnil, rnil)
-    rows_left = np.logical_and(~rnil, lnil)
-    rows_right = np.logical_and(rnil, ~lnil)
+    rows_left = np.logical_and(rnil, ~lnil)
+    rows_right = np.logical_and(~rnil, lnil)
     rows_crash = np.logical_or(lstart == _MID_FG, rstart == _MID_FG)
     rows_close = (rstart + lstart) <= side_len
     rows_closer = np.logical_and(lstart < max_depth, rstart < max_depth)
@@ -62,17 +62,22 @@ def center_crash(img, fg, bounds):
                   rows_crash + rows_close + rows_closer) == 0
 
     mov_empty_fg_2(crash_data, rows_empty, img)
+    mov_left_overshoot_2(crash_data, rows_left, img)
+    mov_right_overshoot_2(crash_data, rows_right, img)
 
     for row_data in zip(img, lstart, rstart, fg):
         irow, ls, rs, frow = row_data
         row_data = _row_data(*row_data)
         lmov = rmov = max_depth
         if not ls and not rs:
-            mov_empty_fg(crash_data, row_data)
+            pass
+            #mov_empty_fg(crash_data, row_data)
         elif ls and not rs:
-            mov_left_overshoot(crash_data, row_data)
+            pass
+            #mov_left_overshoot(crash_data, row_data)
         elif rs and not ls:
-            mov_right_overshoot(crash_data, row_data)
+            pass
+            #mov_right_overshoot(crash_data, row_data)
         elif rs == _MID_FG or ls == _MID_FG:
             lmov, rmov = mov_crash(crash_data, row_data)
         elif (rs < max_depth) and (ls < max_depth):
@@ -86,19 +91,24 @@ def center_crash(img, fg, bounds):
     return img
 
 
+@profile
 def _contiguous_chunks(mask, img):
-    """Generates contiguous chunks of an image given a mask"""
-    start = stop = None
-    for idx, val in enumerate(mask):
-        if val:
-            stop = idx + 1
-            if start is None:
-                start = idx
-        elif stop is not None:
+    idx = 0
+    while idx <= mask.size - 1:
+        start = np.argmax(mask[idx:]) + idx
+        if start == idx and not mask[idx]:
+            break
+        stop = np.argmin(mask[start:]) + start
+        if start == mask.size - 1:
+            yield img[start: start + 1]
+            break
+        elif stop == start and not mask[start + 1]:
+            yield img[start: start + 1]
+            break
+        else:
             yield img[start: stop]
-            start = stop = None
-    if stop is not None:
-        yield img[start: stop]
+        idx = stop
+
 
 
 def mov_empty_fg_2(crash, mask, image):
@@ -116,6 +126,12 @@ def mov_empty_fg(crash, row):
     irow[depth: crash.mid_left] = irow[:crash.start]
 
 
+def mov_left_overshoot_2(crash, mask, image):
+    for img in _contiguous_chunks(mask, image):
+        img[:, crash.max_depth: crash.mid_right] = img[:, :crash.center]
+        img[:, crash.mid_right: -crash.max_depth] = img[:, crash.stop:]
+    
+
 def mov_left_overshoot(crash, row):
     """Crash a row where the left side overshoots the center line"""
     irow = row.irow
@@ -124,12 +140,17 @@ def mov_left_overshoot(crash, row):
     irow[crash.mid_right: -depth] = irow[crash.stop:]  # no RHS FG
 
 
+def mov_right_overshoot_2(crash, mask, image):
+    for img in _contiguous_chunks(mask, image):
+        img[:, crash.max_depth: crash.mid_left] = img[:, :crash.start]
+        img[:, crash.mid_left: -crash.max_depth] = img[:, crash.center:]
+
+
 def mov_right_overshoot(crash, row):
     """Crash a row where the right side overshoots the center line"""
-    irow = row.irow
-    depth = crash.max_depth
-    irow[depth: crash.mid_left] = irow[:crash.start]  # no LHS FG
-    irow[crash.mid_left: -depth] = irow[crash.center:]
+    for img in _contiguous_chunks(mask, image):
+        irow[depth: crash.mid_left] = irow[:crash.start]  # no LHS FG
+        irow[crash.mid_left: -depth] = irow[crash.center:]
 
 
 def mov_crash(crash, row):
