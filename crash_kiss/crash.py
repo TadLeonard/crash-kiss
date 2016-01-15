@@ -64,22 +64,12 @@ def center_crash(img, fg, bounds):
     mov_empty_fg_2(crash_data, rows_empty, img)
     mov_left_overshoot_2(crash_data, rows_left, img)
     mov_right_overshoot_2(crash_data, rows_right, img)
-    #mov_near_collision_2(crash_data, rows_near, img)
 
     for row_data in zip(img, lstart, rstart, fg):
         irow, ls, rs, frow = row_data
         row_data = _row_data(*row_data)
         lmov = rmov = max_depth
-        if not ls and not rs:
-            pass
-            #mov_empty_fg(crash_data, row_data)
-        elif ls and not rs:
-            pass
-            #mov_left_overshoot(crash_data, row_data)
-        elif rs and not ls:
-            pass
-            #mov_right_overshoot(crash_data, row_data)
-        else:
+        if rs and ls:
             lmov, rmov = mov_crash(crash_data, row_data)
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
