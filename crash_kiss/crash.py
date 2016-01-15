@@ -64,6 +64,7 @@ def center_crash(img, fg, bounds):
     mov_empty_fg_2(crash_data, rows_empty, img)
     mov_left_overshoot_2(crash_data, rows_left, img)
     mov_right_overshoot_2(crash_data, rows_right, img)
+    #mov_near_collision_2(crash_data, rows_near, img)
 
     for row_data in zip(img, lstart, rstart, fg):
         irow, ls, rs, frow = row_data
@@ -82,10 +83,12 @@ def center_crash(img, fg, bounds):
             lmov, rmov = mov_crash(crash_data, row_data)
         elif (rs < max_depth) and (ls < max_depth):
             lmov, rmov = mov_crash(crash_data, row_data)
-        elif rs + ls <= side_len:
-            lmov, rmov = mov_crash(crash_data, row_data)
+        #elif rs + ls <= side_len:
         else:
-            mov_near_collision(crash_data, row_data)
+            lmov, rmov = mov_crash(crash_data, row_data)
+        #else:
+        #    pass
+            #mov_near_collision(crash_data, row_data)
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
     return img
@@ -107,7 +110,7 @@ def _contiguous_chunks(mask, img):
             break
         else:
             yield img[start: stop]
-        idx = stop
+        idx = stop + 1
 
 
 
@@ -193,6 +196,13 @@ def mov_crash(crash, row):
     irow[center + fg_r_start + rlen: end] = (
         irow[center + fg_r_start + rlen + rmov:])
     return lmov, rmov
+
+
+def mov_near_collision_2(crash, mask, image):
+    for img in _contiguous_chunks(mask, image):
+        img[:, crash.max_depth: center - ls + depth] = img[: center - ls]
+        img[:, crash.center + rs - depth: -depth] = img[center + rs:]
+         
 
 
 def mov_near_collision(crash, row):
