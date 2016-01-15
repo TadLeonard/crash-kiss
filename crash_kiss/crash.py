@@ -26,7 +26,7 @@ _crash_data = namedtuple(
 _row_data = namedtuple("row", "irow ls rs frow")
 
 
-@profile
+#@profile
 def center_crash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
@@ -61,7 +61,7 @@ def center_crash(img, fg, bounds):
     rows_other = (rows_empty + rows_left + rows_right +
                   rows_crash + rows_close + rows_closer) == 0
 
-    mov_empty_fg_2(crash_data, empty_rows, img)
+    mov_empty_fg_2(crash_data, rows_empty, img)
 
     for row_data in zip(img, lstart, rstart, fg):
         irow, ls, rs, frow = row_data
@@ -101,9 +101,10 @@ def _contiguous_chunks(mask, img):
         yield img[start: stop]
 
 
-def mov_empty_fg_2(crash, empty_rows, img):
-    img[crash.mid_right: -crash.max_depth] = img[crash.stop:]
-    img[crash.max_depth: crash.mid_left] = img[:crash.start]
+def mov_empty_fg_2(crash, mask, image):
+    for img in _contiguous_chunks(mask, image):
+        img[:, crash.mid_right: -crash.max_depth] = img[:, crash.stop:]
+        img[:, crash.max_depth: crash.mid_left] = img[:, :crash.start]
 
 
 def mov_empty_fg(crash, row):

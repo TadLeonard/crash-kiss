@@ -153,7 +153,7 @@ def test_double_overshoot():
 def test_contiguous_chunks():
     img = np.arange(10)
     mask = np.zeros((10,))
-    mask[3:5] = 1
+    mask[3: 5] = 1
     mask[6] = 1
     mask[9] = 1
     chunks = crash._contiguous_chunks(mask, img)
