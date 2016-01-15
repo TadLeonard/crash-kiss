@@ -79,16 +79,8 @@ def center_crash(img, fg, bounds):
         elif rs and not ls:
             pass
             #mov_right_overshoot(crash_data, row_data)
-        elif rs == _MID_FG or ls == _MID_FG:
-            lmov, rmov = mov_crash(crash_data, row_data)
-        elif (rs < max_depth) and (ls < max_depth):
-            lmov, rmov = mov_crash(crash_data, row_data)
-        #elif rs + ls <= side_len:
         else:
             lmov, rmov = mov_crash(crash_data, row_data)
-        #else:
-        #    pass
-            #mov_near_collision(crash_data, row_data)
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
     return img
