@@ -26,6 +26,7 @@ _crash_data = namedtuple(
 _row_data = namedtuple("row", "irow ls rs frow")
 
 
+@profile
 def center_crash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
@@ -48,6 +49,19 @@ def center_crash(img, fg, bounds):
     lstart[lfg[:, 0] == 1] = _MID_FG
     rstart = np.argmax(rfg, axis=1)
     rstart[rfg[:, 0] == 1] = _MID_FG
+    
+    lnil = lstart == 0
+    rnil = rstart == 0
+    rows_empty = np.logical_and(lnil, rnil)
+    rows_left = np.logical_and(~rnil, lnil)
+    rows_right = np.logical_and(rnil, ~lnil)
+    rows_crash = np.logical_or(lstart == _MID_FG, rstart == _MID_FG)
+    rows_close = (rstart + lstart) <= side_len
+    rows_closer = np.logical_and(lstart < max_depth, rstart < max_depth)
+    rows_other = (rows_empty + rows_left + rows_right +
+                  rows_crash + rows_close + rows_closer) == 0
+
+    mov_empty_fg_2(crash_data, empty_rows, img)
 
     for row_data in zip(img, lstart, rstart, fg):
         irow, ls, rs, frow = row_data
@@ -70,6 +84,26 @@ def center_crash(img, fg, bounds):
         irow[:lmov] = WHITE
         irow[-rmov:] = WHITE
     return img
+
+
+def _contiguous_chunks(mask, img):
+    """Generates contiguous chunks of an image given a mask"""
+    start = stop = None
+    for idx, val in enumerate(mask):
+        if val:
+            stop = idx + 1
+            if start is None:
+                start = idx
+        elif stop is not None:
+            yield img[start: stop]
+            start = stop = None
+    if stop is not None:
+        yield img[start: stop]
+
+
+def mov_empty_fg_2(crash, empty_rows, img):
+    img[crash.mid_right: -crash.max_depth] = img[crash.stop:]
+    img[crash.max_depth: crash.mid_left] = img[:crash.start]
 
 
 def mov_empty_fg(crash, row):

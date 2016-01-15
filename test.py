@@ -3,7 +3,6 @@ import os
 import itertools
 import imread
 import numpy as np
-import pytest
 from crash_kiss import util, foreground, crash
 import kiss
 
@@ -149,7 +148,30 @@ def test_double_overshoot():
     print("".join(map(str, row_data.irow)))
     print("".join(map(str, data_out)))
     assert np.all(row_data.irow == data_out)
-   
+
+
+def test_contiguous_chunks():
+    img = np.arange(10)
+    mask = np.zeros((10,))
+    mask[3:5] = 1
+    mask[6] = 1
+    mask[9] = 1
+    chunks = crash._contiguous_chunks(mask, img)
+    chunks = [list(chunk) for chunk in chunks]
+    assert chunks == [[3, 4], [6], [9]]
+
+
+def test_center_obstructed():
+    O, L = [255, 255, 255], [0, 0, 0]
+    img = np.ndarray(
+        (3, 9, 3), int,
+        np.array([[O, O, O, L, L, L, O, O, O],
+                  [O, O, L, L, L, O, O, O, O],
+                  [O, O, O, L, L, L, O, O, O],
+        ]))
+    params = crash.CrashParams(5, 5, 0xFF, [0, 1, 2])
+    fg, bounds = foreground.find_foreground(img, params)
+
 
 def _row(data, max_depth=None):
     """Make a `crash._row_data` namedtuple instance based on a list of 
