@@ -111,15 +111,14 @@ def smoosh_overlap(
             for j in range(midline, midline + depth):
                 if not foreground[i, j]:  # background gap found 
                     break
-        for jnext in range(j+3, j + depth):
-            img[i, jnext]  = 200
+        for jnext in range(j+3, j + depth + 3):
             if foreground[i, jnext]:  # end of background gap found
                 break
             else:
                 travel += 1 
+        travel += 3
         travel /= 2
         meet = j + travel
-        img[i, meet] = 200, 0, 200
         if travel < depth:
             collapse_max = to_collapse = depth - travel
         else:
