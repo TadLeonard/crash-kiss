@@ -12,11 +12,12 @@ An image processing art project. Given an input image, this program
 """
 
 import argparse
-import os
 import glob
 import multiprocessing
 import pprint
+import os
 import time
+
 from crash_kiss import foreground, config, util, crash
 
 
@@ -30,7 +31,7 @@ parser.add_argument("-b", "--bg-value", type=int,
                          "'auto' to automatically gather per-row "
                          "background values.",
                       default=config.BG_VALUE)
-parser.add_argument("-s", "--crash", action="store_true")
+parser.add_argument("-c", "--crash", action="store_true")
 parser.add_argument("-e", "--reveal-foreground", action="store_true")
 parser.add_argument("-E", "--reveal-background", action="store_true")
 parser.add_argument("-q", "--reveal-quadrants", action="store_true",
@@ -151,10 +152,10 @@ def run_sequence(args):
         procs = [multiprocessing.Process(
                     target=crash.sequence_crash, args=(params,))
                  for params in task_chunks]
-        map(multiprocessing.Process.start, procs)
-        map(multiprocessing.Process.join, procs)
+        list(map(multiprocessing.Process.start, procs))
+        list(map(multiprocessing.Process.join, procs))
     else:
-        map(crash.sequence_crash, task_chunks)
+        list(map(crash.sequence_crash, task_chunks))
 
     print("Crashed {0} images in {1:0.1f} seconds".format(
           len(depths), time.time() - start))
