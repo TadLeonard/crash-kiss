@@ -1,10 +1,10 @@
-import numpy
 from setuptools import setup
 try:
+    import numpy
     from Cython.Build import cythonize
 except ImportError:
     import sys
-    sys.exit("Cython required; pip install Cython")
+    sys.exit("Cython and numpy required; pip install Cython numpy")
 
 
 
