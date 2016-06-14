@@ -13,6 +13,7 @@ import numpy as np
 from six.moves import zip, range
 from crash_kiss import util, foreground
 from crash_kiss.config import WHITE
+from crash_kiss import smoosh
 
 
 # _MID_FG is a placeholder value for foreground data that is at the center
@@ -26,58 +27,67 @@ _crash_data = namedtuple(
 _row_data = namedtuple("row", "irow ls rs frow")
 
 
-#@profile
 def center_crash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
-    start, stop, fg_mid, max_depth = bounds
-    fg_l = fg_mid - max_depth
-    fg_r = fg_mid + max_depth
-    mid_left = start + max_depth
-    center = start +  2 * max_depth
-    mid_right = center + max_depth
+    start, stop, fg_mid, depth = bounds
+    fg_l = fg_mid - depth
+    fg_r = fg_mid + depth
+    mid_left = start + depth
+    center = start +  2 * depth
+    mid_right = center + depth
     side_len = fg.shape[1] // 2
-    crash_data = _crash_data(start, stop, fg_mid, max_depth, fg_l,
-                             fg_r, mid_left, center, mid_right,
-                             side_len)
 
     lfg = fg[:, :bounds.fg_mid]
     lfg = util.invert_horizontal(lfg)
     rfg = fg[:, bounds.fg_mid:]
     lstart = np.argmax(lfg, axis=1)
-    lstart[lfg[:, 0] == 1] = _MID_FG
     rstart = np.argmax(rfg, axis=1)
-    rstart[rfg[:, 0] == 1] = _MID_FG
-    
-    lnil = lstart == 0
-    rnil = rstart == 0
-    rows_empty = np.logical_and(lnil, rnil)
-    rows_left = np.logical_and(rnil, ~lnil)
+    overlap = np.logical_or(rfg[:, 0], lfg[:, 0])
+    foreground = np.zeros(img.shape[:2], dtype=bool)
+    foreground[:, start: stop] = fg
+    lnil = np.logical_and(lstart == 0, ~overlap)
+    rnil = np.logical_and(rstart == 0, ~overlap)
+
+    # Move rows with subject only on left side OR no subject at all
+    rows_left = rnil
+    for chunk, _ in _contiguous_chunks(rows_left, img):
+        cpy = chunk.copy()
+        chunk[:, mid_left: -depth] = chunk[:, center:]
+        chunk[:, depth: mid_right] = cpy[:, :center]
+        chunk[:, :depth] = WHITE
+        chunk[:, -depth:] = WHITE
+
+    # Move rows with subject only on right side
     rows_right = np.logical_and(~rnil, lnil)
-    rows_crash = np.logical_or(lstart == _MID_FG, rstart == _MID_FG)
-    rows_close = (rstart + lstart) <= side_len
-    rows_closer = np.logical_and(lstart < max_depth, rstart < max_depth)
+    for chunk, _ in _contiguous_chunks(rows_right, img):
+        cpy = chunk.copy()
+        chunk[:, depth: mid_right] = chunk[:, :center]
+        chunk[:, mid_left: -depth] = cpy[:, center:]
+        chunk[:, :depth] = WHITE
+        chunk[:, -depth:] = WHITE
+    
+    # Move rows with foreground overlapping the center
+    chunks = _contiguous_chunks(overlap, img, foreground, lfg, rfg)
+    for chunk, (f, _lfg, _rfg) in chunks:
+        l = np.argmin(_lfg, axis=1)
+        r = np.argmin(_rfg, axis=1)
+        left_overlaps = l > r
+        smoosh.smoosh_overlap(chunk, f, left_overlaps, depth)
 
-    mov_empty_fg_2(crash_data, rows_empty, img)
-    mov_left_overshoot_2(crash_data, rows_left, img)
-    mov_right_overshoot_2(crash_data, rows_right, img)
+    # Move rows with subjects that are close together
+    rows_close = np.logical_and(~rnil, ~lnil)
+    rows_close[overlap] = 0
+    chunks = _contiguous_chunks(
+        rows_close, img, lstart, rstart, foreground)
+    for chunk, (l, r, f) in chunks:
+        smoosh.smoosh(chunk, l, r, f, depth)
 
-    rows_fully_moved = (rows_empty + rows_left + rows_right) != 0
-
-    for row_data in zip(img, lstart, rstart, fg):
-        irow, ls, rs, frow = row_data
-        row_data = _row_data(*row_data)
-        lmov = rmov = max_depth
-        if rs and ls:
-            lmov, rmov = mov_crash(crash_data, row_data)
-        #irow[:lmov] = WHITE
-        #irow[-rmov:] = WHITE
     return img
 
 
-#@profile
-def _contiguous_chunks(mask, img):
+def _contiguous_chunks(mask, img, *masks):
     idx = 0
     while idx <= mask.size - 1:
         start = np.argmax(mask[idx:]) + idx
@@ -85,115 +95,14 @@ def _contiguous_chunks(mask, img):
             break
         stop = np.argmin(mask[start:]) + start
         if start == mask.size - 1:
-            yield img[start: start + 1]
+            yield img[start: start + 1], (m[start: start + 1] for m in masks)
             break
         elif stop == start and not mask[start + 1]:
-            yield img[start: start + 1]
+            yield img[start: start + 1], (m[start: start + 1] for m in masks)
             break
         else:
-            yield img[start: stop]
+            yield img[start: stop], (m[start: stop] for m in masks)
         idx = stop + 1
-
-
-
-def mov_empty_fg_2(crash, mask, image):
-    for img in _contiguous_chunks(mask, image):
-        img[:, crash.mid_right: -crash.max_depth] = img[:, crash.stop:]
-        img[:, crash.max_depth: crash.mid_left] = img[:, :crash.start]
-
-
-def mov_empty_fg(crash, row):
-    """Crash a row with an empty foreground area"""
-    irow, ls, rs = row[:-1]
-    depth = crash.max_depth
-    center = crash.center
-    irow[crash.mid_right: -depth] = irow[crash.stop:]
-    irow[depth: crash.mid_left] = irow[:crash.start]
-
-
-def mov_left_overshoot_2(crash, mask, image):
-    for img in _contiguous_chunks(mask, image):
-        img[:, crash.max_depth: crash.mid_right] = img[:, :crash.center]
-        img[:, crash.mid_right: -crash.max_depth] = img[:, crash.stop:]
-    
-
-def mov_left_overshoot(crash, row):
-    """Crash a row where the left side overshoots the center line"""
-    irow = row.irow
-    depth = crash.max_depth
-    irow[depth: crash.mid_right] = irow[:crash.center] 
-    irow[crash.mid_right: -depth] = irow[crash.stop:]  # no RHS FG
-
-
-def mov_right_overshoot_2(crash, mask, image):
-    for img in _contiguous_chunks(mask, image):
-        img[:, crash.max_depth: crash.mid_left] = img[:, :crash.start]
-        img[:, crash.mid_left: -crash.max_depth] = img[:, crash.center:]
-
-
-def mov_right_overshoot(crash, row):
-    """Crash a row where the right side overshoots the center line"""
-    for img in _contiguous_chunks(mask, image):
-        irow[depth: crash.mid_left] = irow[:crash.start]  # no LHS FG
-        irow[crash.mid_left: -depth] = irow[crash.center:]
-
-
-def mov_crash(crash, row):
-    """Crash a row towards the center for the case where
-    the foreground on either side of the image will make contact"""
-    fg_mid = crash.fg_mid
-    center = crash.center
-    max_depth = crash.max_depth
-    ls, rs = row.ls, row.rs
-    frow, irow = row.frow, row.irow
-    lextra = rextra = 0
-    if ls == _MID_FG or rs == _MID_FG:
-        if ls != _MID_FG or rs != _MID_FG:
-            ls = rs = 0
-        if ls == _MID_FG:
-            lextra = frow[:fg_mid][::-1].argmin()
-        if rs == _MID_FG:
-            rextra = frow[fg_mid:].argmin()    
-    offs = rs - ls
-    dist = rs + ls - 1
-    ledge_mov = dist // 2  # TRUNCATION less on left
-    redge_mov = dist - ledge_mov
-    fg_l_stop = fg_r_start = -ls + ledge_mov - 1
-    bg_mask = frow[fg_mid + fg_l_stop - max_depth: fg_mid + fg_r_start + max_depth]
-    l_bg_mask = bg_mask[:max_depth]
-    r_bg_mask = bg_mask[max_depth:]
-    llen = np.count_nonzero(l_bg_mask)
-    rlen = np.count_nonzero(r_bg_mask)
-    lsquash = len(l_bg_mask) - llen - ledge_mov
-    rsquash = len(r_bg_mask) - rlen - redge_mov
-    lmov = ledge_mov + lsquash + lextra
-    rmov = redge_mov + rsquash + rextra
-    subj = irow[center + fg_l_stop - max_depth: center + fg_r_start + max_depth]
-    subj = subj[bg_mask]
-    irow[center + fg_l_stop - llen: center + fg_r_start + rlen] = subj
-    
-    irow[lmov: center + fg_l_stop - llen] = (
-        irow[:center + fg_l_stop - llen - lmov])
-    end = -rmov or irow.shape[0]
-    irow[center + fg_r_start + rlen: end] = (
-        irow[center + fg_r_start + rlen + rmov:])
-    return lmov, rmov
-
-
-def mov_near_collision_2(crash, mask, image):
-    for img in _contiguous_chunks(mask, image):
-        img[:, crash.max_depth: center - ls + depth] = img[: center - ls]
-        img[:, crash.center + rs - depth: -depth] = img[center + rs:]
-         
-
-
-def mov_near_collision(crash, row):
-    depth = crash.max_depth
-    center = crash.center
-    irow = row.irow
-    ls, rs = row.ls, row.rs
-    irow[depth: center - ls + depth] = irow[: center - ls]
-    irow[center + rs - depth: -depth] = irow[center + rs:]
 
 
 class CrashParams(object):
