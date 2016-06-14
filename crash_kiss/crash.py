@@ -50,8 +50,16 @@ def center_crash(img, fg, bounds):
     lnil = np.logical_and(lstart == 0, ~overlap)
     rnil = np.logical_and(rstart == 0, ~overlap)
 
+    rows_empty = np.logical_and(lnil, rnil)
+    for chunk, _ in _contiguous_chunks(rows_empty, img):
+        cpy = chunk.copy()
+        chunk[:, mid_left: -depth] = chunk[:, center:]
+        chunk[:, depth: mid_right] = cpy[:, :center]
+        chunk[:, :depth] = WHITE
+        chunk[:, -depth:] = WHITE
+
     # Move rows with subject only on left side OR no subject at all
-    rows_left = rnil
+    rows_left = np.logical_and(~lnil, rnil)
     for chunk, _ in _contiguous_chunks(rows_left, img):
         cpy = chunk.copy()
         chunk[:, mid_left: -depth] = chunk[:, center:]
@@ -97,8 +105,11 @@ def _contiguous_chunks(mask, img, *masks):
         if start == mask.size - 1:
             yield img[start: start + 1], (m[start: start + 1] for m in masks)
             break
-        elif stop == start and not mask[start + 1]:
-            yield img[start: start + 1], (m[start: start + 1] for m in masks)
+        elif stop == start and mask[start + 1]:
+            if mask[start + 1]:
+                yield img[start:], (m[start:] for m in masks)
+            else:
+                yield img[start: start + 1], (m[start: start + 1] for m in masks)
             break
         else:
             yield img[start: stop], (m[start: stop] for m in masks)
