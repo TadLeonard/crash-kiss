@@ -105,7 +105,7 @@ def _contiguous_chunks(mask, img, *masks):
         if start == mask.size - 1:
             yield img[start: start + 1], (m[start: start + 1] for m in masks)
             break
-        elif stop == start and mask[start + 1]:
+        elif stop == start:
             if mask[start + 1]:
                 yield img[start:], (m[start:] for m in masks)
             else:
