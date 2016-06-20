@@ -18,6 +18,7 @@ import pprint
 import os
 import time
 
+from moviepy.editor import VideoClip
 from crash_kiss import foreground, config, util, crash
 
 
@@ -159,6 +160,39 @@ def run_sequence(args):
 
     print("Crashed {0} images in {1:0.1f} seconds".format(
           len(depths), time.time() - start))
+
+
+def run_animation(args):
+    start = time.time()  # keep track of total duration
+    target = args.target
+    stepsize = args.sequence
+    img = util.read_img(target)
+    bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
+    max_depth = bounds.max_depth
+    crash_params = crash.CrashParams(
+        max_depth, args.threshold, args.bg_value, args.rgb_select)
+    depths = range(max_depth, -stepsize, -stepsize)
+    depths = [d for d in depths if d > 0]
+    depths.append(0)
+    n_procs = max(args.in_parallel, 1)
+    basic_args = (target, working_dir, output_suffix, crash_params, counter)
+    tasks = [basic_args + (d_chunk,) for d_chunk in depth_chunks]
+    tasks = [crash.SequenceParams(*args) for args in tasks]
+
+    fps = args.fps
+    duration = len(depths) / fps
+
+    def make_frame(time):
+        frame_no = int(round(time * fps))
+        if frame_no >= len(tasks):
+            frame_no = len(tasks) - 1
+        task = tasks[frame_no]
+        
+ 
+    animation = VideoClip(make_frame, duration=args.duration)
+    animation.write_videofile(args.video, fps=args.fps, audio=False,
+                              preset=args.compression,
+                              threads=args.ffmpeg_threads)
 
 
 def _chunks(things, n_chunks):
