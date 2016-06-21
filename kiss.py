@@ -18,6 +18,7 @@ import pprint
 import os
 import time
 
+from collections import namedtuple
 from moviepy.editor import VideoClip
 from crash_kiss import foreground, config, util, crash
 
@@ -68,10 +69,20 @@ parser.add_argument("-u", "--output-suffix",
 parser.add_argument("--sequence", type=int, default=0,
                     help="create a sequence of crash kisses from 0 to "
                          "--max-depth in steps of SEQUENCE size")
+parser.add_argument("--animate", type=int, default=0,
+                    help="create an mp4 animation of crash kisses from 0 to "
+                         "--mas-depth in steps of ANIMATE size")
+parser.add_argument("--fps", type=int, default=24)
 parser.add_argument("--in-parallel", type=int,
                     default=multiprocessing.cpu_count(),
                     help="generate a sequence of crashed image "
                          "in parallel across N processes")
+parser.add_argument("--compression", default="veryfast",
+                    choices=("ultrafast", "veryfast", "fast",))
+
+
+_options = namedtuple("options", "reveal_foreground reveal_background "
+                                "crash reveal_quadrants")
 
 
 def main():
@@ -82,6 +93,8 @@ def main():
         run_auto(args)
     elif args.sequence:
         run_sequence(args)
+    elif args.animate:
+        run_animate(args)
     else:
         run_once(args)
         
@@ -162,10 +175,10 @@ def run_sequence(args):
           len(depths), time.time() - start))
 
 
-def run_animation(args):
+def run_animate(args):
     start = time.time()  # keep track of total duration
     target = args.target
-    stepsize = args.sequence
+    stepsize = args.animate
     img = util.read_img(target)
     bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
     max_depth = bounds.max_depth
@@ -174,25 +187,33 @@ def run_animation(args):
     depths = range(max_depth, -stepsize, -stepsize)
     depths = [d for d in depths if d > 0]
     depths.append(0)
+    n_frames = len(depths)
     n_procs = max(args.in_parallel, 1)
-    basic_args = (target, working_dir, output_suffix, crash_params, counter)
-    tasks = [basic_args + (d_chunk,) for d_chunk in depth_chunks]
-    tasks = [crash.SequenceParams(*args) for args in tasks]
 
     fps = args.fps
     duration = len(depths) / fps
+    img = util.read_img(target)
+    options = _options(args.reveal_foreground, args.reveal_background,
+                       args.crash, args.reveal_quadrants)
 
     def make_frame(time):
         frame_no = int(round(time * fps))
-        if frame_no >= len(tasks):
-            frame_no = len(tasks) - 1
-        task = tasks[frame_no]
-        
- 
-    animation = VideoClip(make_frame, duration=args.duration)
-    animation.write_videofile(args.video, fps=args.fps, audio=False,
+        if frame_no >= n_frames:
+            frame_no = n_frames - 1
+        depth = depths[-frame_no]
+        source_img = util.read_img(target)
+        if depth:
+            params = crash.CrashParams(
+                depth, args.threshold, args.bg_value, args.rgb_select)
+            new_img = _process_img(source_img, params, options)
+        else:
+            new_img = source_img
+        return new_img
+    
+    animation = VideoClip(make_frame, duration=duration)
+    animation.write_videofile(args.outfile, fps=fps, audio=False,
                               preset=args.compression,
-                              threads=args.ffmpeg_threads)
+                              threads=args.in_parallel)
 
 
 def _chunks(things, n_chunks):
@@ -226,28 +247,28 @@ def _process_and_save(target_file, output_file, args, save_latest=False):
     """Processes an image ad saves the rusult. Optionally saves the result
     twice (once to LAST_CRASH.jpg) for convenience in the photo booth."""
     img = util.read_img(target_file)
-    new_img = _process_img(img, args)
+    params = crash.CrashParams(
+        args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
+    options = _options(args.reveal_foreground, args.reveal_background,
+                       args.crash, args.reveal_quadrants)
+    new_img = _process_img(img, params, options)
     util.save_img(output_file, new_img)
     if save_latest:
         ext = output_file.split(".")[-1]
         util.save_img(config.LAST_CRASH.format(ext), new_img)
 
 
-def _process_img(img, args):
+def _process_img(img, crash_params, options):
     """Does none or more of several things to `img` based on the given
-    `argparse` args."""
-    params = crash.CrashParams(
-        args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
-    fg, bounds = foreground.find_foreground(img, params)
-     
-    # Various things to do with the result of our image mutations
-    if args.reveal_foreground:
+    `argparse` options."""
+    fg, bounds = foreground.find_foreground(img, crash_params)
+    if options.reveal_foreground:
         util.reveal_foreground(img, fg, bounds)
-    if args.reveal_background:
+    if options.reveal_background:
         util.reveal_background(img, fg, bounds)
-    if args.crash:
+    if options.crash:
         crash.center_crash(img, fg, bounds)
-    if args.reveal_quadrants:
+    if options.reveal_quadrants:
         util.reveal_quadrants(img, bounds)
     return img
 
