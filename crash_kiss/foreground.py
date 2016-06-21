@@ -16,6 +16,7 @@ import numpy as np
 from six.moves import range
 
 
+@profile
 def find_foreground(img, params):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
@@ -51,24 +52,6 @@ def compare_background(img, background, threshold):
         diff = np.any(diff, axis=2)  # we're using a 3D array
     return diff
    
-
-def simplify_background(background, config):
-    """See if the background's RGB elements are similar.
-    If each element in the background is similar enough, we can do a simple
-    array - int operation instead of the more expensive array - [R, G, B]
-    or the even pricier array - <array of shape (NROWS, 1, 3)> operation."""
-    while isinstance(background, np.ndarray):
-        bg_change_tolerance = config["bg_change_tolerance"]
-        bmax, bmin = background.max(axis=0), background.min(axis=0)
-        diff = (bmax - bmin) < bg_change_tolerance
-        if len(background.shape) >= 2:
-            diff = np.all(diff)
-        if diff:
-            background = np.median(background, axis=0)
-        else:
-            break  # we've simplified the background as much as we can
-    return background
-
     
 def get_foreground_area(img, max_depth):
     """Make a slice of the middle of the image based on `max_depth`.
