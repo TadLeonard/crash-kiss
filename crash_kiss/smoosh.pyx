@@ -9,7 +9,7 @@ import cython
 def smoosh(np.ndarray[np.uint8_t, ndim=3] img,
            np.ndarray[np.int_t, ndim=1] lstart,
            np.ndarray[np.int_t, ndim=1] rstart,
-           np.ndarray[np.uint8_t, ndim=2, cast=True] foreground,
+           np.ndarray[np.uint8_t, ndim=2] foreground,
            int depth):
     cdef int nrows = img.shape[0]
     cdef int ncols = img.shape[1]
@@ -82,8 +82,8 @@ def smoosh(np.ndarray[np.uint8_t, ndim=3] img,
 @cython.nonecheck(False)
 def smoosh_overlap(
         np.ndarray[np.uint8_t, ndim=3] img,
-        np.ndarray[np.uint8_t, ndim=2, cast=True] foreground,
-        np.ndarray[np.uint8_t, ndim=1, cast=True] is_left_overlap,
+        np.ndarray[np.uint8_t, ndim=2] foreground,
+        np.ndarray[np.uint8_t, ndim=1] is_left_overlap,
         int depth):
     cdef int nrows = img.shape[0]
     cdef int ncols = img.shape[1]
