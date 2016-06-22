@@ -45,7 +45,7 @@ def center_crash(img, fg, bounds):
     lstart = np.argmax(lfg, axis=1)
     rstart = np.argmax(rfg, axis=1)
     overlap = np.logical_or(rfg[:, 0], lfg[:, 0])
-    foreground = np.zeros(img.shape[:2], dtype=bool)
+    foreground = np.zeros(img.shape[:2], dtype=np.uint8)
     foreground[:, start: stop] = fg
     lnil = np.logical_and(lstart == 0, ~overlap)
     rnil = np.logical_and(rstart == 0, ~overlap)
@@ -81,7 +81,7 @@ def center_crash(img, fg, bounds):
     for chunk, (f, _lfg, _rfg) in chunks:
         l = np.argmin(_lfg, axis=1)
         r = np.argmin(_rfg, axis=1)
-        left_overlaps = l > r
+        left_overlaps = (l > r).astype(np.uint8)
         smoosh.smoosh_overlap(chunk, f, left_overlaps, depth)
 
     # Move rows with subjects that are close together

@@ -195,17 +195,20 @@ def run_animate(args):
     img = util.read_img(target)
     options = _options(args.reveal_foreground, args.reveal_background,
                        args.crash, args.reveal_quadrants)
+    source_img = util.read_img(target)
+    fg, bounds = foreground.find_foreground(source_img, crash_params)
 
     def make_frame(time):
         frame_no = int(round(time * fps))
         if frame_no >= n_frames:
             frame_no = n_frames - 1
         depth = depths[-frame_no]
-        source_img = util.read_img(target)
+        img = source_img.copy()
         if depth:
             params = crash.CrashParams(
                 depth, args.threshold, args.bg_value, args.rgb_select)
-            new_img = _process_img(source_img, params, options)
+            new_fg, new_bounds = foreground.trim_foreground(img, fg, params)
+            new_img = _process_img(img, new_fg, new_bounds, options)
         else:
             new_img = source_img
         return new_img
@@ -247,27 +250,27 @@ def _process_and_save(target_file, output_file, args, save_latest=False):
     """Processes an image ad saves the rusult. Optionally saves the result
     twice (once to LAST_CRASH.jpg) for convenience in the photo booth."""
     img = util.read_img(target_file)
+    fg, bounds = foreground.find_foreground(img, crash_params)
     params = crash.CrashParams(
         args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
     options = _options(args.reveal_foreground, args.reveal_background,
                        args.crash, args.reveal_quadrants)
-    new_img = _process_img(img, params, options)
+    new_img = _process_img(img, fg, bounds, options)
     util.save_img(output_file, new_img)
     if save_latest:
         ext = output_file.split(".")[-1]
         util.save_img(config.LAST_CRASH.format(ext), new_img)
 
 
-def _process_img(img, crash_params, options):
+def _process_img(img, foreground, bounds, options):
     """Does none or more of several things to `img` based on the given
     `argparse` options."""
-    fg, bounds = foreground.find_foreground(img, crash_params)
     if options.reveal_foreground:
-        util.reveal_foreground(img, fg, bounds)
+        util.reveal_foreground(img, foreground, bounds)
     if options.reveal_background:
-        util.reveal_background(img, fg, bounds)
+        util.reveal_background(img, foreground, bounds)
     if options.crash:
-        crash.center_crash(img, fg, bounds)
+        crash.center_crash(img, foreground, bounds)
     if options.reveal_quadrants:
         util.reveal_quadrants(img, bounds)
     return img

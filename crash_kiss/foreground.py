@@ -16,7 +16,6 @@ import numpy as np
 from six.moves import range
 
 
-@profile
 def find_foreground(img, params):
     """Find the foreground of the image by subracting each RGB element
     in the image by the background. If the background has been reduced
@@ -38,6 +37,14 @@ def find_foreground(img, params):
     return fg, bounds
 
 
+def trim_foreground(img, foreground, params):
+    bounds = get_fg_bounds(img.shape[1], params.max_depth)
+    difference = (img.shape[1] - foreground.shape[1]) / 2
+    start = bounds.start - difference
+    stop = bounds.stop - difference
+    return foreground[:, start: stop], bounds
+ 
+
 def compare_background(img, background, threshold):
     """Compare a 2-D or 3-D image array to a background value given a
     certain threshold"""
@@ -50,7 +57,7 @@ def compare_background(img, background, threshold):
         diff = np.abs(img - background) > threshold
     if len(diff.shape) == 3:
         diff = np.any(diff, axis=2)  # we're using a 3D array
-    return diff
+    return diff.astype(np.uint8)
    
     
 def get_foreground_area(img, max_depth):
