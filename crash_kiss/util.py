@@ -118,6 +118,7 @@ def reveal_foreground(img, foreground, bounds):
     1) purple if the pixel is in an OUTER quadrant
     or 2) black if the pixel is in an INNER quadrant"""
     start, stop, fg_mid, max_depth = bounds
+    foreground = foreground.astype(bool)
     critical_fg = foreground[:, max_depth: -max_depth]
     img[:, start: stop][foreground] = PURPLE
     img[:, start + max_depth: stop - max_depth][critical_fg] = config.BLACK
