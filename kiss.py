@@ -250,9 +250,9 @@ def _process_and_save(target_file, output_file, args, save_latest=False):
     """Processes an image ad saves the rusult. Optionally saves the result
     twice (once to LAST_CRASH.jpg) for convenience in the photo booth."""
     img = util.read_img(target_file)
-    fg, bounds = foreground.find_foreground(img, crash_params)
     params = crash.CrashParams(
         args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
+    fg, bounds = foreground.find_foreground(img, params)
     options = _options(args.reveal_foreground, args.reveal_background,
                        args.crash, args.reveal_quadrants)
     new_img = _process_img(img, fg, bounds, options)
