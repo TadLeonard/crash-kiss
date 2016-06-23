@@ -26,58 +26,59 @@ from crash_kiss import foreground, config, util, crash
 parser = argparse.ArgumentParser(
 	description=__doc__,
 	formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-parser.add_argument("target", nargs="?", help="path to an image file to process")
-parser.add_argument("-b", "--bg-value", type=int,
+group = parser.add_argument_group("kiss options")
+group.add_argument("target", nargs="?", help="path to an image file to process")
+group.add_argument("-b", "--bg-value", type=int,
                     help="A number to represent the color of the background "
                          "should the user want to manually set it. Use "
                          "'auto' to automatically gather per-row "
                          "background values.",
                       default=config.BG_VALUE)
-parser.add_argument("-c", "--crash", action="store_true")
-parser.add_argument("-e", "--reveal-foreground", action="store_true")
-parser.add_argument("-E", "--reveal-background", action="store_true")
-parser.add_argument("-q", "--reveal-quadrants", action="store_true",
+group.add_argument("-c", "--crash", action="store_true")
+group.add_argument("-e", "--reveal-foreground", action="store_true")
+group.add_argument("-E", "--reveal-background", action="store_true")
+group.add_argument("-q", "--reveal-quadrants", action="store_true",
                     help="reveal the inner and outer quadrants of the "
                          "'crashable area' with vertical lines")
-parser.add_argument("-t", "--threshold",
+group.add_argument("-t", "--threshold",
                     help="min difference between background and foreground ",
                     default=config.THRESHOLD, type=int)
-parser.add_argument("-d", "--max-depth", type=int,
+group.add_argument("-d", "--max-depth", type=int,
                     default=config.MAX_DEPTH,
                     help="Max number of pixels that the left and right "
                          "subjects will smoosh into each other. Neither face "
                          "will collapse by more than max_depth")
-parser.add_argument("-r", "--rgb-select", default=config.RGB_SELECT,
+group.add_argument("-r", "--rgb-select", default=config.RGB_SELECT,
                     type=lambda x: sorted(map(int, x.split(","))),
                     help="Find edges based on a subset of RGB(A?) by "
                          "passing a comma-sep list of indices")
-parser.add_argument("-o", "--outfile", default=None)
-parser.add_argument("-a", "--auto-run", action="store_true",
+group.add_argument("-o", "--outfile", default=None)
+group.add_argument("-a", "--auto-run", action="store_true",
                     help="automatically process new images that appear in "
                          "the working directory")
-parser.add_argument("-w", "--working-dir",
+group.add_argument("-w", "--working-dir",
                     help="specify the directory for newly processed images "
                          "in --auto-run mode or in normal mode when no "
                          "output file is specified")
-parser.add_argument("-W", "--search-suffix",
+group.add_argument("-W", "--search-suffix",
                     help="specify suffix to search for in working dir "
                          "in --auto-run mode (default is .jpg)")
-parser.add_argument("-u", "--output-suffix",
+group.add_argument("-u", "--output-suffix",
                     help="specify the file name suffix for produced images "
                          "in --auto-run mode or in normal mode when no "
                          "output file is specified")
-parser.add_argument("--sequence", type=int, default=0,
+group.add_argument("--sequence", type=int, default=0,
                     help="create a sequence of crash kisses from 0 to "
                          "--max-depth in steps of SEQUENCE size")
-parser.add_argument("--animate", type=int, default=0,
+group.add_argument("--animate", type=int, default=0,
                     help="create an mp4 animation of crash kisses from 0 to "
                          "--mas-depth in steps of ANIMATE size")
-parser.add_argument("--fps", type=int, default=24)
-parser.add_argument("--in-parallel", type=int,
+group.add_argument("--fps", type=int, default=24)
+group.add_argument("--in-parallel", type=int,
                     default=multiprocessing.cpu_count(),
                     help="generate a sequence of crashed image "
                          "in parallel across N processes")
-parser.add_argument("--compression", default="veryfast",
+group.add_argument("--compression", default="veryfast",
                     choices=("ultrafast", "veryfast", "fast",))
 
 
@@ -97,7 +98,7 @@ def main():
         run_animate(args)
     else:
         run_once(args)
-        
+
 
 def run_auto(args):
     """Automatic photo booth mode! Monitors a directory for new files
@@ -139,7 +140,7 @@ def _gen_new_files(search_dir, search_pattern):
             print("Found new file: {0}".format(new_file))
             yield new_file
         old_files = current_files = set(glob.glob(search_dir))
-         
+
 
 def run_sequence(args):
     """Carry out a sequence crash (optionally across multiple processes)"""
@@ -176,7 +177,6 @@ def run_sequence(args):
 
 
 def run_animate(args):
-    start = time.time()  # keep track of total duration
     target = args.target
     stepsize = args.animate
     img = util.read_img(target)
@@ -212,11 +212,15 @@ def run_animate(args):
         else:
             new_img = source_img
         return new_img
-    
+
     animation = VideoClip(make_frame, duration=duration)
-    animation.write_videofile(args.outfile, fps=fps, audio=False,
+    clip = animation.to_ImageClip(t=duration)
+    clip.duration = 0.1
+    clip.write_videofile(args.outfile, fps=fps, audio=False)
+    animation.write_videofile("__temp_crash.mp4", fps=fps, audio=False,
                               preset=args.compression,
                               threads=args.in_parallel)
+    os.rename("__temp_crash.mp4", args.outfile)
 
 
 def _chunks(things, n_chunks):
@@ -244,14 +248,14 @@ def run_once(args):
         out_file = "{0}_{1}.{2}".format(name, suffix, ext)
         out_file = os.path.join(loc, out_file)
     _process_and_save(args.target, out_file, args)
-  
+
 
 def _process_and_save(target_file, output_file, args, save_latest=False):
     """Processes an image ad saves the rusult. Optionally saves the result
     twice (once to LAST_CRASH.jpg) for convenience in the photo booth."""
     img = util.read_img(target_file)
     params = crash.CrashParams(
-        args.max_depth, args.threshold, args.bg_value, args.rgb_select) 
+        args.max_depth, args.threshold, args.bg_value, args.rgb_select)
     fg, bounds = foreground.find_foreground(img, params)
     options = _options(args.reveal_foreground, args.reveal_background,
                        args.crash, args.reveal_quadrants)
