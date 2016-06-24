@@ -95,7 +95,7 @@ def main():
     elif args.sequence:
         run_sequence(args)
     elif args.animate:
-        run_animate(args)
+        run_animate(args, args.target, args.outfile)
     else:
         run_once(args)
 
@@ -176,8 +176,7 @@ def run_sequence(args):
           len(depths), time.time() - start))
 
 
-def run_animate(args):
-    target = args.target
+def run_animate(args, target, outfile):
     stepsize = args.animate
     img = util.read_img(target)
     bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
@@ -216,11 +215,11 @@ def run_animate(args):
     animation = VideoClip(make_frame, duration=duration)
     clip = animation.to_ImageClip(t=duration)
     clip.duration = 0.1
-    clip.write_videofile(args.outfile, fps=fps, audio=False)
+    clip.write_videofile(outfile, fps=fps, audio=False)
     animation.write_videofile("__temp_crash.mp4", fps=fps, audio=False,
                               preset=args.compression,
                               threads=args.in_parallel)
-    os.rename("__temp_crash.mp4", args.outfile)
+    os.rename("__temp_crash.mp4", outfile)
 
 
 def _chunks(things, n_chunks):
