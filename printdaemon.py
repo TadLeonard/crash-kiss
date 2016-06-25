@@ -9,8 +9,8 @@ from tfatool.sync import watch_local_files
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("print_dir")
-args = parser.parse_args()
+parser.add_argument("print_dir", help="Print new files that appear "
+                                      "in PRINT_DIR")
 
 
 _print = print
@@ -20,7 +20,7 @@ def print(to_print, *args, **kwargs):
     _print("[printd] {}".format(to_print), *args, **kwargs)
 
 
-def main():
+def main(args):
     busy = "."
     for new_files, _ in watch_local_files(local_dir=args.print_dir):
         time.sleep(0.2)
@@ -45,11 +45,11 @@ def print_file(new_file):
         time.sleep(5)
 
 
-
 if __name__ == "__main__":
+    args = parser.parse_args()
     while True:
         try:
-            main()
+            main(args)
         except KeyboardInterrupt:
             print("Bye!")
             break
