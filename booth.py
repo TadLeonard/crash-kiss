@@ -25,10 +25,7 @@ def print(to_print, *args, **kwargs):
 def main(args):
     only_jpg = lambda path: path.filename.lower().endswith(".jpg")
     watcher = sync.down_by_arrival(only_jpg, local_dir=args.photo_input_dir)
-    try:
-        create_animations(args, watcher)
-    except KeyboardInterrupt:
-        print("Bye!")
+    create_animations(args, watcher)
 
 
 def create_animations(args, watcher):
@@ -52,16 +49,26 @@ def create_animations(args, watcher):
                 shutil.copyfile(args.crash_file, crash_copy)
 
 
-if __name__ == "__main__":
-    args = parser.parse_args()
+def run(args):
     while True:
+        is_io_error = False
         try:
             main(args)
         except KeyboardInterrupt:
-            print("\nBye!")
             break
+        except IOError as e:
+            is_io_error = True
+            print("Connection problem: {}".format(e))
         except Exception:
             traceback.print_exc()
-            print("Sleeping five seconds after error")
-            time.sleep(5)
+        recovery_time = 1 if is_io_error else 5
+        time.sleep(recovery_time)
+        print("Sleeping {} s to recover".format(recovery_time))
 
+
+if __name__ == "__main__":
+    args = parser.parse_args()
+    try:
+        run(args)
+    except KeyboardInterrupt:
+        pass
