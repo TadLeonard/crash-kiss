@@ -83,12 +83,12 @@ if __name__ == "__main__":
         args.animate = 1
         args.fps = 60
         args.compression = "ultrafast"
-        args.photo_input_dir = Path(
-            "~/Pictures/vernal_pond/input/").expanduser()
-        args.crash_output_dir = Path(
-            "~/Pictures/vernal_pond/output/").expanduser()
-        args.crash_file = Path(
-            "~/Pictures/vernal_pond/latest_crash.mp4").expanduser()
+        args.photo_input_dir = str(Path(
+            "~/Pictures/vernal_pond/input/").expanduser())
+        args.crash_output_dir = str(Path(
+            "~/Pictures/vernal_pond/output/").expanduser())
+        args.crash_file = str(Path(
+            "~/Pictures/vernal_pond/latest_crash.mp4").expanduser())
         defaults = dict(vars(args)).fromkeys(
                 "crash threshold animate fps compression "
                 "photo_input_dir crash_output_dir crash_file".split())

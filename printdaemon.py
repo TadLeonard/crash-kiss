@@ -45,7 +45,7 @@ def print_file(new_file):
     print("Waiting three seconds to ensure the file has been written")
     time.sleep(3)
     try:
-        run_process(["selphy", new_file.path], timeout=20)
+        run_process(["selphy", new_file.path], timeout=30)
     except OSError:
         traceback.print_exc()
         print("Sleeping two seconds after file printing error")
