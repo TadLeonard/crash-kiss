@@ -29,7 +29,6 @@ def main(args):
 
 
 def create_animations(args, watcher):
-    print("Watching for new photos in {}".format(args.photo_input_dir))
     busy = "."
     for _, new_photos in watcher:
         if not new_photos:
@@ -50,20 +49,26 @@ def create_animations(args, watcher):
 
 
 def run(args):
+    print("Watching for new photos in {}".format(args.photo_input_dir))
+    busy = "."
     while True:
         is_io_error = False
         try:
             main(args)
         except KeyboardInterrupt:
             break
-        except IOError as e:
+        except IOError:
             is_io_error = True
-            print("Connection problem: {}".format(e))
         except Exception:
             traceback.print_exc()
-        recovery_time = 1 if is_io_error else 5
+        recovery_time = 0.5 if is_io_error else 5
+        busy = " " if busy == "." else "."
+        if is_io_error:
+            print("Waiting for FlashAir connection. . {}\r".format(
+                  busy), end="")
+        else:
+            print("ERROR: Waiting {} to recover".format(recovery_time))
         time.sleep(recovery_time)
-        print("Sleeping {} s to recover".format(recovery_time))
 
 
 if __name__ == "__main__":
@@ -72,3 +77,6 @@ if __name__ == "__main__":
         run(args)
     except KeyboardInterrupt:
         pass
+    finally:
+        print("\nBye!")
+
