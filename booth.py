@@ -3,6 +3,7 @@
 import os
 import shutil
 import time
+import traceback
 
 from kiss import parser, run_animate
 from tfatool import sync
@@ -14,10 +15,15 @@ booth_group.add_argument("--crash-output-dir", default=".")
 booth_group.add_argument("--crash-file", default="crash.mp4")
 
 
-def main():
-    args = parser.parse_args()
+_print = print
+
+
+def print(to_print, *args, **kwargs):
+    _print("[crash] {}".format(to_print), *args, **kwargs)
+
+
+def main(args):
     only_jpg = lambda path: path.filename.lower().endswith(".jpg")
-    #watcher = sync.watch_local_files(local_dir=args.photo_input_dir)
     watcher = sync.down_by_arrival(only_jpg, local_dir=args.photo_input_dir)
     try:
         create_animations(args, watcher)
@@ -47,4 +53,15 @@ def create_animations(args, watcher):
 
 
 if __name__ == "__main__":
-    main()
+    args = parser.parse_args()
+    while True:
+        try:
+            main(args)
+        except KeyboardInterrupt:
+            print("\nBye!")
+            break
+        except Exception:
+            traceback.print_exc()
+            print("Sleeping five seconds after error")
+            time.sleep(5)
+
