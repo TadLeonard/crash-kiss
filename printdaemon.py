@@ -53,7 +53,7 @@ if __name__ == "__main__":
         try:
             main(args)
         except KeyboardInterrupt:
-            print("Bye!")
+            print("\nBye!")
             break
         except Exception:
             traceback.print_exc()
