@@ -3,14 +3,18 @@
 import argparse
 import time
 import traceback
+import pathlib
 
 from subprocess import run as run_process
 from tfatool.sync import watch_local_files
 
 
 parser = argparse.ArgumentParser()
-parser.add_argument("print_dir", help="Print new files that appear "
-                                      "in PRINT_DIR")
+parser.add_argument("print_dir", default=".", nargs="?",
+                    help="Print new files that appear in PRINT_DIR")
+parser.add_argument("--vernal-pond", action="store_true",
+                    help="use default VLC screen cap directory for "
+                         "CMCA Vernal Pond show")
 
 
 _print = print
@@ -28,7 +32,8 @@ def main(args):
         time.sleep(0.2)
         if not new_files:
             busy = " " if busy == "." else "."
-            print(". . {}\r".format(busy), end="")
+            print("Waiting for files in {}. . {}\r".format(
+                  args.print_dir, busy), end="")
             continue
         for new_file in new_files:
             print_file(new_file)
@@ -49,6 +54,9 @@ def print_file(new_file):
 
 if __name__ == "__main__":
     args = parser.parse_args()
+    if args.vernal_pond:
+        path = pathlib.Path("~/Pictures/vernal_pond/prints/").expanduser()
+        args.print_dir = str(path)
     while True:
         try:
             main(args)
@@ -57,6 +65,6 @@ if __name__ == "__main__":
             break
         except Exception:
             traceback.print_exc()
-            print("Sleeping five seconds after error")
-            time.sleep(5)
+        print("Sleeping five seconds after error")
+        time.sleep(5)
 
