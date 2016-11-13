@@ -1,19 +1,19 @@
 """General image processing processing functions"""
 
 import os
-import imread
+import imageio
 from six.moves import zip
 import numpy as np
 from crash_kiss import config
 
 
 def read_img(file_name):
-    return imread.imread(file_name)
+    return imageio.imread(file_name)
 
 
 def save_img(file_name, img):
     opts = {"quality": 100}  # max JPEG quality
-    imread.imwrite(file_name, img, opts=opts)
+    imageio.imwrite(file_name, img, opts=opts)
 
 
 def combine_images(imgs, horizontal=True):
@@ -80,7 +80,7 @@ def get_rgb_view(img, rgb_indices):
     """Select a "view" of an image based on RGB indices.
     The views are created with normal `numpy` array slicing,
     they are true mutable views of the original data.
-    
+
     >>> red_pixels = get_rgb_view(img, [0])
     >>> red_and_blue = get_rgb_view(img, [0, 2])
     >>> rgb = get_rgb_view(img, [0, 1, 2])
@@ -175,14 +175,14 @@ def get_filename_hints(target, working_dir, out_suffix):
     2) the output filename
     3) the chosen output suffix (if `out_suffix` is None)
     4) the output file extension (i.e. '.jpg')
-    
+
     The user constructs the output file path like this:
     `os.path.join(out_dir, "{0}_{1}.{2}".format(name, suffix, ext)`"""
     suffix = out_suffix or config.OUTPUT_SUFFIX
     out_path = os.path.split(target)
     out_name = out_path[-1]
     out_dir = working_dir or os.path.join(*out_path[:-1])
-    out_ext = out_name.split(".")[-1]              
+    out_ext = out_name.split(".")[-1]
     out_name = "".join(out_name.split(".")[:-1])
     return out_dir, out_name, suffix, out_ext
- 
+
