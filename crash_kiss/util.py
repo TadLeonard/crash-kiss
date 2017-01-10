@@ -1,19 +1,19 @@
 """General image processing processing functions"""
 
 import os
-import imread
+import imageio
 from six.moves import zip
 import numpy as np
 from crash_kiss import config
 
 
 def read_img(file_name):
-    return imread.imread(file_name)
+    return imageio.imread(file_name)
 
 
 def save_img(file_name, img):
     opts = {"quality": 100}  # max JPEG quality
-    imread.imwrite(file_name, img, opts=opts)
+    imageio.imwrite(file_name, img, opts=opts)
 
 
 def combine_images(imgs, horizontal=True):

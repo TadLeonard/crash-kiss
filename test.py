@@ -1,14 +1,14 @@
 from __future__ import print_function
 import os
 import itertools
-import imread
+import imageio
 import numpy as np
 from crash_kiss import util, foreground, crash
 import kiss
 
 
 def _get_test_img():
-    img = imread.imread(os.path.join(os.path.dirname(__file__), "face.jpg"))
+    img = imageio.imread(os.path.join(os.path.dirname(__file__), "face.jpg"))
     # cut off bottom non-white edge
     # make sure it's not square to catch "wrong axis" bugs
     img = img[:-10:, :-7:]
