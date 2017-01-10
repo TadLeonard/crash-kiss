@@ -1,0 +1,7 @@
+numpy
+Cython
+imageio
+moviepy
+pytest
+six
+tqdm
