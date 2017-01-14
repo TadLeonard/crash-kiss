@@ -1,14 +1,15 @@
 #!/usr/bin/env python
 """
 Crash kiss
---
+----------
 
 An image processing art project. Given an input image, this program
 
 1) tries to determine what is the foreground and what is the background
-2) crashes foreground on the left into foreground on the right
+2a) crashes foreground on the left into foreground on the right
+2b) collapses mixed foreground/background regions in a certain way
 3) optionally highlights the background and/or foreground
-4) optionally creates a sequential crash for making .gif files
+4) optionally creates a sequential crash for making .gif or video files
 """
 
 import argparse
@@ -28,21 +29,18 @@ parser = argparse.ArgumentParser(
 	formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 group = parser.add_argument_group("kiss options")
 group.add_argument("target", nargs="?", help="path to an image file to process")
+group.add_argument("-c", "--crash", action="store_true",
+		   help="crash subjects toward the center of the frame")
+group.add_argument("-t", "--threshold",
+                    help="min difference between background and foreground ",
+                    default=config.THRESHOLD, type=int)
+group.add_argument("-o", "--outfile", default=None)
 group.add_argument("-b", "--bg-value", type=int,
                     help="A number to represent the color of the background "
                          "should the user want to manually set it. Use "
                          "'auto' to automatically gather per-row "
                          "background values.",
                       default=config.BG_VALUE)
-group.add_argument("-c", "--crash", action="store_true")
-group.add_argument("-e", "--reveal-foreground", action="store_true")
-group.add_argument("-E", "--reveal-background", action="store_true")
-group.add_argument("-q", "--reveal-quadrants", action="store_true",
-                    help="reveal the inner and outer quadrants of the "
-                         "'crashable area' with vertical lines")
-group.add_argument("-t", "--threshold",
-                    help="min difference between background and foreground ",
-                    default=config.THRESHOLD, type=int)
 group.add_argument("-d", "--max-depth", type=int,
                     default=config.MAX_DEPTH,
                     help="Max number of pixels that the left and right "
@@ -52,38 +50,49 @@ group.add_argument("-r", "--rgb-select", default=config.RGB_SELECT,
                     type=lambda x: sorted(map(int, x.split(","))),
                     help="Find edges based on a subset of RGB(A?) by "
                          "passing a comma-sep list of indices")
-group.add_argument("-o", "--outfile", default=None)
-group.add_argument("-a", "--auto-run", action="store_true",
+
+dbug_group = parser.add_argument_group("debug options")
+dbug_group.add_argument("-e", "--reveal-foreground", action="store_true")
+dbug_group.add_argument("-E", "--reveal-background", action="store_true")
+dbug_group.add_argument("-q", "--reveal-quadrants", action="store_true",
+                        help="reveal the inner and outer quadrants of the "
+                             "'crashable area' with vertical lines")
+
+
+auto_group = parser.add_argument_group("auto-run options")
+auto_group.add_argument("-a", "--auto-run", action="store_true",
                     help="automatically process new images that appear in "
                          "the working directory")
-group.add_argument("-w", "--working-dir",
-                    help="specify the directory for newly processed images "
-                         "in --auto-run mode or in normal mode when no "
-                         "output file is specified")
-group.add_argument("-W", "--search-suffix",
+auto_group.add_argument("-W", "--search-suffix",
                     help="specify suffix to search for in working dir "
                          "in --auto-run mode (default is .jpg)")
-group.add_argument("-u", "--output-suffix",
+auto_group.add_argument("-u", "--output-suffix",
                     help="specify the file name suffix for produced images "
                          "in --auto-run mode or in normal mode when no "
                          "output file is specified")
-group.add_argument("--sequence", type=int, default=0,
-                    help="create a sequence of crash kisses from 0 to "
-                         "--max-depth in steps of SEQUENCE size")
-group.add_argument("--animate", type=int, default=0,
-                    help="create an mp4 animation of crash kisses from 0 to "
-                         "--mas-depth in steps of ANIMATE size")
-group.add_argument("--fps", type=int, default=24)
-group.add_argument("--in-parallel", type=int,
-                    default=multiprocessing.cpu_count(),
-                    help="generate a sequence of crashed image "
-                         "in parallel across N processes")
-group.add_argument("--compression", default="veryfast",
-                    choices=("ultrafast", "veryfast", "fast",))
+auto_group.add_argument("-w", "--working-dir",
+                    help="specify the directory for newly processed images "
+                         "in --auto-run mode or in normal mode when no "
+                         "output file is specified")
+
+video_group = parser.add_argument_group("video/sequence generation options")
+video_group.add_argument("--sequence", type=int, default=0,
+                         help="create a sequence of crash kisses from 0 to "
+                              "--max-depth in steps of SEQUENCE size")
+video_group.add_argument("--animate", type=int, default=0,
+                         help="create an mp4 animation of crash kisses from 0 to "
+                              "--mas-depth in steps of ANIMATE size")
+video_group.add_argument("--fps", type=int, default=24)
+video_group.add_argument("--in-parallel", type=int,
+                         default=multiprocessing.cpu_count(),
+                         help="generate a sequence of crashed image "
+                              "in parallel across N processes")
+video_group.add_argument("--compression", default="veryfast",
+                         choices=("ultrafast", "veryfast", "fast",))
 
 
 _options = namedtuple("options", "reveal_foreground reveal_background "
-                                "crash reveal_quadrants")
+                                 "crash reveal_quadrants")
 
 
 def main():
@@ -140,7 +149,6 @@ def _gen_new_files(search_dir, search_pattern):
             print("Found new file: {0}".format(new_file))
             yield new_file
         old_files = current_files = set(glob.glob(search_dir))
-
 
 def run_sequence(args):
     """Carry out a sequence crash (optionally across multiple processes)"""
