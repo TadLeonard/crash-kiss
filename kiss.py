@@ -20,17 +20,17 @@ import os
 import time
 
 from collections import namedtuple
-from moviepy.editor import VideoClip
+from moviepy.editor import VideoClip, VideoFileClip
 from crash_kiss import foreground, config, util, crash
 
 
 parser = argparse.ArgumentParser(
-	description=__doc__,
-	formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    description=__doc__,
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter)
 group = parser.add_argument_group("kiss options")
 group.add_argument("target", nargs="?", help="path to an image file to process")
 group.add_argument("-c", "--crash", action="store_true",
-		   help="crash subjects toward the center of the frame")
+                   help="crash subjects toward the center of the frame")
 group.add_argument("-t", "--threshold",
                     help="min difference between background and foreground ",
                     default=config.THRESHOLD, type=int)
@@ -58,7 +58,6 @@ dbug_group.add_argument("-q", "--reveal-quadrants", action="store_true",
                         help="reveal the inner and outer quadrants of the "
                              "'crashable area' with vertical lines")
 
-
 auto_group = parser.add_argument_group("auto-run options")
 auto_group.add_argument("-a", "--auto-run", action="store_true",
                     help="automatically process new images that appear in "
@@ -76,12 +75,14 @@ auto_group.add_argument("-w", "--working-dir",
                          "output file is specified")
 
 video_group = parser.add_argument_group("video/sequence generation options")
+video_group.add_argument("--moving-crash", action="store_true",
+                         help="crashees each frame of a gif/mp4 input")
 video_group.add_argument("--sequence", type=int, default=0,
                          help="create a sequence of crash kisses from 0 to "
-                              "--max-depth in steps of SEQUENCE size")
+                              "--max-depth in steps of SEQUENCE size of a still image input")
 video_group.add_argument("--animate", type=int, default=0,
                          help="create an mp4 animation of crash kisses from 0 to "
-                              "--mas-depth in steps of ANIMATE size")
+                              "--max-depth in steps of ANIMATE size")
 video_group.add_argument("--fps", type=int, default=24)
 video_group.add_argument("--in-parallel", type=int,
                          default=multiprocessing.cpu_count(),
@@ -104,7 +105,9 @@ def main():
     elif args.sequence:
         run_sequence(args)
     elif args.animate:
-        run_animate(args, args.target, args.outfile)
+        run_animation(args, args.target, args.outfile)
+    elif args.moving_crash:
+        run_moving_crash(args, args.target, args.outfile)
     else:
         run_once(args)
 
@@ -130,7 +133,7 @@ def _auto_run_loop(suffix, input_files, args):
             input_file, args.working_dir, args.output_suffix)
         output_file = "{0}_{1}.{2}".format(name, suffix, ext)
         output_file = os.path.join(loc, output_file)
-        _process_and_save(input_file, output_file, args, save_latest=True)
+        _process_and_write_last_img(input_file, output_file, args, save_latest=True)
 
 
 def _gen_new_files(search_dir, search_pattern):
@@ -150,8 +153,10 @@ def _gen_new_files(search_dir, search_pattern):
             yield new_file
         old_files = current_files = set(glob.glob(search_dir))
 
+
 def run_sequence(args):
-    """Carry out a sequence crash (optionally across multiple processes)"""
+    """Creates a sequence of images that make up a crash kiss animation
+    based on a still image input"""
     start = time.time()  # keep track of total duration
     target = args.target
     stepsize = args.sequence
@@ -184,7 +189,8 @@ def run_sequence(args):
           len(depths), time.time() - start))
 
 
-def run_animate(args, target, outfile):
+def run_animation(args, target, outfile):
+    """Creates an animated crash based on a still image input"""
     stepsize = args.animate
     img = util.read_img(target)
     bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
@@ -230,6 +236,25 @@ def run_animate(args, target, outfile):
     os.rename("__temp_crash.mp4", outfile)
 
 
+def run_moving_crash(args, target, outfile):
+    """Runs a --moving-crash based on moving (gif/mp4) inputs"""
+    video = VideoFileClip(target)
+    img = video.get_frame(t=0)  # first frame of the video
+    bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
+    max_depth = bounds.max_depth
+    crash_params = crash.CrashParams(
+        max_depth, args.threshold, args.bg_value, args.rgb_select)
+    frames = video.iter_frames(progress_bar=True)
+
+    def make_frame(time):
+        frame = next(frames)
+        return frame
+        
+    output_video = VideoClip(make_frame, duration=video.duration, fps=video.fps)
+    output_video.write_videofile(outfile)
+    
+
+
 def _chunks(things, n_chunks):
     """Creates `n_chunks` contiguous slices of `things`"""
     n_things = len(things)
@@ -254,10 +279,10 @@ def run_once(args):
             args.target, args.working_dir, args.output_suffix)
         out_file = "{0}_{1}.{2}".format(name, suffix, ext)
         out_file = os.path.join(loc, out_file)
-    _process_and_save(args.target, out_file, args)
+    _process_and_write_last_img(args.target, out_file, args)
 
 
-def _process_and_save(target_file, output_file, args, save_latest=False):
+def _process_and_write_last_img(target_file, output_file, args, save_latest=False):
     """Processes an image ad saves the rusult. Optionally saves the result
     twice (once to LAST_CRASH.jpg) for convenience in the photo booth."""
     img = util.read_img(target_file)
