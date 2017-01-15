@@ -244,15 +244,17 @@ def run_moving_crash(args, target, outfile):
     max_depth = bounds.max_depth
     crash_params = crash.CrashParams(
         max_depth, args.threshold, args.bg_value, args.rgb_select)
-    frames = video.iter_frames(progress_bar=True)
+    options = _options(args.reveal_foreground, args.reveal_background,
+                       args.crash, args.reveal_quadrants)
+    frames = video.iter_frames(fps=video.fps)
 
     def make_frame(time):
         frame = next(frames)
-        return frame
+        fg, bounds = foreground.find_foreground(frame, crash_params)
+        return _process_img(frame, fg, bounds, options)
         
-    output_video = VideoClip(make_frame, duration=video.duration, fps=video.fps)
-    output_video.write_videofile(outfile)
-    
+    output_video = VideoClip(make_frame, duration=video.duration)
+    output_video.write_videofile(outfile, fps=video.fps)
 
 
 def _chunks(things, n_chunks):
