@@ -74,9 +74,7 @@ auto_group.add_argument("-w", "--working-dir",
                          "in --auto-run mode or in normal mode when no "
                          "output file is specified")
 
-video_group = parser.add_argument_group("video/sequence generation options")
-video_group.add_argument("--moving-crash", action="store_true",
-                         help="crashees each frame of a gif/mp4 input")
+video_group = parser.add_argument_group("video/sequence crash options (crash from still image inputs)")
 video_group.add_argument("--sequence", type=int, default=0,
                          help="create a sequence of crash kisses from 0 to "
                               "--max-depth in steps of SEQUENCE size of a still image input")
@@ -91,6 +89,9 @@ video_group.add_argument("--in-parallel", type=int,
 video_group.add_argument("--compression", default="veryfast",
                          choices=("ultrafast", "veryfast", "fast",))
 
+moving_group = parser.add_argument_group("moving crash options (crash from video inputs)")
+moving_group.add_argument("--moving-crash", action="store_true",
+                          help="crashees each frame of a gif/mp4 input")
 
 _options = namedtuple("options", "reveal_foreground reveal_background "
                                  "crash reveal_quadrants")
@@ -237,7 +238,7 @@ def run_animation(args, target, outfile):
 
 
 def run_moving_crash(args, target, outfile):
-    """Runs a --moving-crash based on moving (gif/mp4) inputs"""
+    """Runs a moving crash based on moving (gif/mp4) inputs"""
     video = VideoFileClip(target)
     img = video.get_frame(t=0)  # first frame of the video
     bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
@@ -254,7 +255,8 @@ def run_moving_crash(args, target, outfile):
         return _process_img(frame, fg, bounds, options)
         
     output_video = VideoClip(make_frame, duration=video.duration)
-    output_video.write_videofile(outfile, fps=video.fps)
+    output_video.write_videofile(outfile,
+                                 preset=args.compression, fps=video.fps)
 
 
 def _chunks(things, n_chunks):
