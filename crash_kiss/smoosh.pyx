@@ -1,6 +1,8 @@
 import numpy as np
 cimport numpy as np
 import cython
+from cython.parallel import prange
+
 
 
 @cython.boundscheck(False)
@@ -14,13 +16,13 @@ def smoosh(np.ndarray[np.uint8_t, ndim=3] img,
     cdef int nrows = img.shape[0]
     cdef int ncols = img.shape[1]
     cdef int chans = img.shape[2]
+    cdef int midline = ncols / 2
     cdef int meet = 0
     cdef int travel = 0
     cdef int collapse_max = 0
     cdef int to_collapse = 0
-    cdef int i, j, jnext, k, midline, left, right
+    cdef int i, j, jnext, k, left, right
     cdef int ls, rs
-    midline = ncols / 2 
          
     for i in range(nrows):
         ls = lstart[i]
@@ -100,6 +102,8 @@ def smoosh_overlap(
         if not is_left_overlap[i]:
             foreground[i] = foreground[i, ::-1]
             img[i] = img[i, ::-1]
+
+    for i in range(nrows):
         travel = 0
         for j in range(midline, midline + depth):
             if not foreground[i, j]:  # background gap found 
@@ -166,6 +170,7 @@ def smoosh_overlap(
             for k in range(chans):
                 img[i, j, k] = 255
 
+    for i in range(nrows):
         if not is_left_overlap[i]:
             foreground[i] = foreground[i, ::-1]
             img[i] = img[i, ::-1]

@@ -1,6 +1,6 @@
 Crash Kiss: automated intimacy
 ==============================
-This project is an automation of [Rollin Leonard](http://rollinleonard.com)'s 2013 artwork called *Crash Kiss*. Take a look at a [sample](http://rollinleonard.com/projects/2013/crashKiss-guthrieEllis/) of the original work.
+This project is an automation of [Rollin Leonard](http://rollinleonard.com)'s 2013 artwork called *Crash Kiss*. Take a look at a [sample](http://thecreatorsproject.vice.com/blog/we-crash-kissed-julianna-huxtable-at-the-nowseethis-art-party) of the original work.
 
 Rollin's work was done very carefully and *slowly* in Photoshop. He needed a tool to remove the burden of laboriously moving individual rows of pixels around to get the "crash kiss" effect. With this tool, Rollin gets to focus on finding good subjects, taking good photos, and presenting the resulting "crash kisses" in compelling ways.
 
