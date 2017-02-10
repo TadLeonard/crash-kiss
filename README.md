@@ -1,9 +1,8 @@
 Crash Kiss: automated intimacy
 ==============================
-This project is an automation of [Rollin Leonard](http://rollinleonard.com)'s 2013 artwork called *Crash Kiss*. Take a look at a [sample](http://thecreatorsproject.vice.com/blog/we-crash-kissed-julianna-huxtable-at-the-nowseethis-art-party) of the original work.
-
-Rollin's work was done very carefully and *slowly* in Photoshop. He needed a tool to remove the burden of laboriously moving individual rows of pixels around to get the "crash kiss" effect. With this tool, Rollin gets to focus on finding good subjects, taking good photos, and presenting the resulting "crash kisses" in compelling ways.
-
+This is an art collaboration with [Rollin Leonard](http://rollinleonard.com).
+Have a look at a [sample](http://thecreatorsproject.vice.com/blog/we-crash-kissed-julianna-huxtable-at-the-nowseethis-art-party) of the work
+as shown at the Carnegie Museum of Art.
 
 The crash kiss process
 ----------------------
@@ -12,7 +11,6 @@ Given an image of two people facing each other:
 1. Find the foreground of the image (i.e. pixels that are not like the background)
 2. For each row of the foreground, move the left and right hand side towards each other until they touch
 3. Continue "crushing" background space out of the row until some maximum depth has been achieved
-4. Save the processed image to the disk
 
 Goals, challenges
 -----------------
