@@ -31,7 +31,7 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
                           (background_value & 0xFF0000) >> 16};
 
     int i;
-//#pragma omp parallel for
+#pragma omp parallel for schedule(static)
     for (i = 0; i < rows; i++) {
         // left and right "inner" cursors starting from middle
         int l_in = middle;
@@ -41,17 +41,20 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
 
         // Now we find where the foreground on each side meet
         int j;
-        for (j = l_in; j > l_in - absolute_max; j--) {
+        //for (j = l_in; j > l_in - absolute_max; j--) {
+        for (j = l_in; j > absolute_max; j--) {
             if (foreground[fg_offs+j]) // found the first foreground pixel on the left
                 break;
         }
         int l_out = j;  // left outer cursor is set
-        for (j = r_in; j < r_in + absolute_max; j++) {
+        //for (j = r_in; j < r_in + absolute_max; j++) {
+        for (j = r_in; j < cols-1-absolute_max; j++) {
             if (foreground[fg_offs+j]) // found the first foreground pixel on the right
                 break;
         }
         int r_out = j;  // right outer cursor is set
         // L and R inner cursors are at the meeting point between the subjects
+
         l_in = l_out + (r_out - l_out)/2;
         r_in = l_in + 1;
 
@@ -62,11 +65,17 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
                 break;  // we found the background on the left
         }
         l_in = j;
-        for (j = r_in; j < cols; j++) {
+        if (l_in > l_out + absolute_max)
+            l_in = l_out + absolute_max;
+        //l_in = fmin(j, l_out+absolute_max);
+        for (j = r_in; j < cols-1; j++) {
             if (!foreground[fg_offs+j])
                 break;  // we found the background on the right
         }
         r_in = j;
+        if (r_in < r_out - absolute_max)
+            r_in = r_out - absolute_max;
+        //r_in = fmax(j, r_out-absolute_max);
 
         // Collapse background pixels, not to exceed absolute_max
         int k;  // RGB color channel index
@@ -103,6 +112,10 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
         }
 
         // Move remaining pixels on left
+        if (l_out_last == absolute_max) {
+            l_out_last = middle - absolute_max;
+            l_in_last = middle;
+        }
         int l_dist = l_in_last - l_out_last;
         for (j = l_out_last; j >= 0; j--) {
             for (k = 0; k < 3; k++) {
@@ -149,6 +162,10 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
         }
 
         // Move remaining pixels on right
+        if (r_out_last == cols - absolute_max - 1) {
+            r_out_last = middle + absolute_max;
+            r_in_last = middle;
+        }
         int r_dist = r_out_last - r_in_last;
         for (j = r_out_last; j <= cols-1; j++) {
             for (k = 0; k < 3; k++) {
@@ -163,8 +180,6 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
                 img[img_offs + j*3 + k] = bg_rgb[k];
             }
         }
-
-
     }
 }
 
