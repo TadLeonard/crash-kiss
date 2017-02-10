@@ -263,7 +263,8 @@ def run_moving_crash(args, target, outfile):
     output_video = VideoClip(
         make_frame, duration=video.duration-(4/video.fps))  # trim last 4 frms
     output_video.write_videofile(
-        outfile, preset=args.compression, fps=video.fps)
+        outfile, preset=args.compression, fps=video.fps,
+        threads=args.in_parallel)
 
 
 def _chunks(things, n_chunks):
