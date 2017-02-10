@@ -1,4 +1,4 @@
-"""Parameters for subject vs. background 
+"""Parameters for subject vs. background
 thresholds, background values, and more"""
 
 
@@ -10,7 +10,7 @@ FULL_DEPTH = 0xFFFF
 
 # default crash parameters
 THRESHOLD = 10
-BG_VALUE = WHITE
+BG_VALUE = 0xFF
 RGB_SELECT = None
 MAX_DEPTH = FULL_DEPTH
 

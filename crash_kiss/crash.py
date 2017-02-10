@@ -13,7 +13,8 @@ import numpy as np
 from six.moves import zip, range
 from crash_kiss import util, foreground
 from crash_kiss.config import WHITE
-from crash_kiss import smoosh
+#from crash_kiss import smoosh
+from crash_kiss.omp_smoosh import smoosh
 
 
 # _MID_FG is a placeholder value for foreground data that is at the center
@@ -27,7 +28,15 @@ _crash_data = namedtuple(
 _row_data = namedtuple("row", "irow ls rs frow")
 
 
-def center_crash(img, fg, bounds):
+def center_crash(img, fg, bounds, background_value):
+    start, stop, fg_mid, depth = bounds
+    foreground = np.zeros(img.shape[:2], dtype=np.uint8)
+    foreground[:, start: stop] = fg
+    smoosh(img, foreground, depth, background_value)
+    return img
+
+
+def _old_center_crash(img, fg, bounds):
     """Move the rows of each subject together until they touch.
     Write over the vacated space with whatever the row's negative space
     is (probably white or transparent pixels)."""
@@ -75,7 +84,7 @@ def center_crash(img, fg, bounds):
         chunk[:, mid_left: -depth] = cpy[:, center:]
         chunk[:, :depth] = WHITE
         chunk[:, -depth:] = WHITE
-    
+
     # Move rows with foreground overlapping the center
     chunks = _contiguous_chunks(overlap, img, foreground, lfg, rfg)
     for chunk, (f, _lfg, _rfg) in chunks:
@@ -117,9 +126,9 @@ def _contiguous_chunks(mask, img, *masks):
 
 
 class CrashParams(object):
-    """A **picklable** container of values that can be sent to 
+    """A **picklable** container of values that can be sent to
     a `multiprocessing.Process` object. Usually a `namedtuple` or some
-    other simple container would be better, but `namedtuple` is not 
+    other simple container would be better, but `namedtuple` is not
     picklable!"""
     _params = "max_depth threshold bg_value rgb_select".split()
 
@@ -127,7 +136,7 @@ class CrashParams(object):
         given_args = dict(zip(self._params, repeat(None)))
         for name, value in zip(self._params, args):
             given_args[name] = value
-        for name, value in kwargs.items():  
+        for name, value in kwargs.items():
             given_args[name] = value
         self.__dict__.update(given_args)
 
@@ -167,10 +176,10 @@ def sequence_crash(params):
     _print_count(params.counter)
 
     # We'll create a background mask (i.e. the foreground selection) with
-    # the same shape as the image. This lets us calculate the entire 
+    # the same shape as the image. This lets us calculate the entire
     # foreground just once and slice it down to size for each iteration
     # of the crash. Not having to recalculate the foreground each time
-    # saves lots of CPU cycles. 
+    # saves lots of CPU cycles.
     total_fg = np.zeros(shape=img.shape[:2], dtype=bool)  # a 2D mask
     total_fg[:, bounds.start: bounds.stop] = fg
     for depth in params.depths[1:]:
@@ -180,7 +189,7 @@ def sequence_crash(params):
             crashed = _crash_at_depth(img, total_fg, depth)
         util.save_img(template.format(depth), crashed)
         _print_count(params.counter)
-        
+
 
 def _print_count(counter):
     counter.value -= 1
