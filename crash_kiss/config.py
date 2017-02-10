@@ -10,7 +10,7 @@ FULL_DEPTH = 0xFFFF
 
 # default crash parameters
 THRESHOLD = 10
-BG_VALUE = 0xFF
+BG_VALUE = 0xFFFFFF
 RGB_SELECT = None
 MAX_DEPTH = FULL_DEPTH
 
