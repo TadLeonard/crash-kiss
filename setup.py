@@ -11,7 +11,9 @@ extra_compile_args = ["-fopenmp", "-O3", "-ffast-math"]
 
 
 omp_ext = Extension("crash_kiss.omp_smoosh",
-                    sources=["crash_kiss/omp_smoosh.pyx",],
+                    sources=[
+                        "crash_kiss/_omp_smoosh.c",
+                        "crash_kiss/omp_smoosh.pyx",],
                     extra_compile_args=extra_compile_args,
                     include_dirs=["crash_kiss/"],
                     extra_link_args=["-fopenmp"])
