@@ -13,6 +13,7 @@ An image processing art project. Given an input image, this program
 """
 
 import argparse
+import ast
 import glob
 import multiprocessing
 import pprint
@@ -35,12 +36,12 @@ group.add_argument("-t", "--threshold",
                     help="min difference between background and foreground ",
                     default=config.THRESHOLD, type=int)
 group.add_argument("-o", "--outfile", default=None)
-group.add_argument("-b", "--bg-value", type=int,
+group.add_argument("-b", "--bg-value",
                     help="A number to represent the color of the background "
                          "should the user want to manually set it. Use "
                          "'auto' to automatically gather per-row "
                          "background values.",
-                      default=config.BG_VALUE)
+                      default=hex(config.BG_VALUE))
 group.add_argument("-d", "--max-depth", type=int,
                     default=config.MAX_DEPTH,
                     help="Max number of pixels that the left and right "
@@ -94,11 +95,16 @@ moving_group.add_argument("--moving-crash", action="store_true",
                           help="crashees each frame of a gif/mp4 input")
 
 _options = namedtuple("options", "reveal_foreground reveal_background "
-                                 "crash reveal_quadrants")
+                                 "crash reveal_quadrants bg_value")
 
 
 def main():
     args = parser.parse_args()
+    try:
+        args.bg_value = ast.literal_eval(args.bg_value)
+        assert isinstance(args.bg_value, int)
+    except ValueError:
+        parser.error("Specify an integer background value")
     if not args.target and not args.auto_run:
         parser.error("Specify a target image or use -a/--auto-run mode")
     if args.auto_run:
@@ -246,17 +252,18 @@ def run_moving_crash(args, target, outfile):
     crash_params = crash.CrashParams(
         max_depth, args.threshold, args.bg_value, args.rgb_select)
     options = _options(args.reveal_foreground, args.reveal_background,
-                       args.crash, args.reveal_quadrants)
+                       args.crash, args.reveal_quadrants, args.bg_value)
     frames = video.iter_frames(fps=video.fps)
 
-    def make_frame(time):
+    def make_frame(_):
         frame = next(frames)
         fg, bounds = foreground.find_foreground(frame, crash_params)
         return _process_img(frame, fg, bounds, options)
-        
-    output_video = VideoClip(make_frame, duration=video.duration)
-    output_video.write_videofile(outfile,
-                                 preset=args.compression, fps=video.fps)
+
+    output_video = VideoClip(
+        make_frame, duration=video.duration-(4/video.fps))  # trim last 4 frms
+    output_video.write_videofile(
+        outfile, preset=args.compression, fps=video.fps)
 
 
 def _chunks(things, n_chunks):
@@ -310,7 +317,7 @@ def _process_img(img, foreground, bounds, options):
     if options.reveal_background:
         util.reveal_background(img, foreground, bounds)
     if options.crash:
-        crash.center_crash(img, foreground, bounds)
+        crash.center_crash(img, foreground, bounds, options.bg_value)
     if options.reveal_quadrants:
         util.reveal_quadrants(img, bounds)
     return img
