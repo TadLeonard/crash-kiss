@@ -6,5 +6,6 @@
 
 
 void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
-                    int rows, int cols, int max_depth);
+                    int rows, int cols, int max_depth,
+                    int background_value);
 
