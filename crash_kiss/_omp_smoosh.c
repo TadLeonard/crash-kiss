@@ -109,10 +109,6 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
 
         // Correct for overshoot due to lack of foreground
         if (!l_crushed) {
-            l_out_last = middle - absolute_max;
-            l_in_last = middle;
-            l_in_last = l_in_orig;
-            l_out_last = l_in_orig;
             l_in_last = l_in_orig;
             l_out_last = l_in_orig - absolute_max;
         }
@@ -167,8 +163,6 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
 
         // Correct for overshoot due to lack of foreground
         if (!r_crushed) {
-            //r_out_last = middle + absolute_max;
-            //r_in_last = middle;
             r_in_last = r_in_orig;
             r_out_last = r_in_orig + absolute_max;
 
