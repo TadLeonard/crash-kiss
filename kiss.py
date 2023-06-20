@@ -36,6 +36,9 @@ group.add_argument("-t", "--threshold",
                     help="min difference between background and foreground ",
                     default=config.THRESHOLD, type=int)
 group.add_argument("-o", "--outfile", default=None)
+group.add_argument(
+    "-r", "--out-resolution", default=None, #default="5376x1512"
+)
 group.add_argument("-b", "--bg-value",
                     help="A number to represent the color of the background "
                          "should the user want to manually set it. Use "
@@ -47,10 +50,6 @@ group.add_argument("-d", "--max-depth", type=int,
                     help="Max number of pixels that the left and right "
                          "subjects will smoosh into each other. Neither face "
                          "will collapse by more than max_depth")
-group.add_argument("-r", "--rgb-select", default=config.RGB_SELECT,
-                    type=lambda x: sorted(map(int, x.split(","))),
-                    help="Find edges based on a subset of RGB(A?) by "
-                         "passing a comma-sep list of indices")
 
 dbug_group = parser.add_argument_group("debug options")
 dbug_group.add_argument("-e", "--reveal-foreground", action="store_true")
@@ -90,7 +89,7 @@ video_group.add_argument("--in-parallel", type=int,
 video_group.add_argument("--compression", default="veryfast",
                          choices=("ultrafast", "veryfast", "fast",))
 
-moving_group = parser.add_argument_group("moving crash options (crash from video inputs)")
+moving_group = parser.add_argument_group("[UNFINISHED] moving crash options (crash from video inputs)")
 moving_group.add_argument("--moving-crash", action="store_true",
                           help="crashees each frame of a gif/mp4 input")
 
@@ -105,6 +104,7 @@ def main():
         assert isinstance(args.bg_value, int)
     except ValueError:
         parser.error("Specify an integer background value")
+
     if not args.target and not args.auto_run:
         parser.error("Specify a target image or use -a/--auto-run mode")
     if args.auto_run:
@@ -171,7 +171,7 @@ def run_sequence(args):
     bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
     max_depth = bounds.max_depth
     crash_params = crash.CrashParams(
-        max_depth, args.threshold, args.bg_value, args.rgb_select)
+        max_depth, args.threshold, args.bg_value)
     depths = range(max_depth, -stepsize, -stepsize)
     depths = [d for d in depths if d > 0]
     depths.append(0)
@@ -203,7 +203,7 @@ def run_animation(args, target, outfile):
     bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
     max_depth = bounds.max_depth
     crash_params = crash.CrashParams(
-        max_depth, args.threshold, args.bg_value, args.rgb_select)
+        max_depth, args.threshold, args.bg_value)
     depths = range(max_depth, -stepsize, -stepsize)
     depths = [d for d in depths if d > 0]
     depths.append(0)
@@ -212,35 +212,27 @@ def run_animation(args, target, outfile):
 
     fps = args.fps
     duration = len(depths) / fps
-    img = util.read_img(target)
     options = _options(args.reveal_foreground, args.reveal_background,
-                       args.crash, args.reveal_quadrants)
-    source_img = util.read_img(target)
-    fg, bounds = foreground.find_foreground(source_img, crash_params)
+                       args.crash, args.reveal_quadrants, args.bg_value)
+    fg, bounds = foreground.find_foreground(img, crash_params)
 
     def make_frame(time):
         frame_no = int(round(time * fps))
         if frame_no >= n_frames:
             frame_no = n_frames - 1
         depth = depths[-frame_no]
-        img = source_img.copy()
+        this_img = img.copy()
         if depth:
             params = crash.CrashParams(
-                depth, args.threshold, args.bg_value, args.rgb_select)
-            new_fg, new_bounds = foreground.trim_foreground(img, fg, params)
-            new_img = _process_img(img, new_fg, new_bounds, options)
+                depth, args.threshold, args.bg_value)
+            new_fg, new_bounds = foreground.trim_foreground(this_img, fg, params)
+            new_img = _process_img(this_img, new_fg, new_bounds, options)
         else:
-            new_img = source_img
+            new_img = this_img
         return new_img
 
     animation = VideoClip(make_frame, duration=duration)
-    clip = animation.to_ImageClip(t=duration)
-    clip.duration = 0.1
-    clip.write_videofile(outfile, fps=fps, audio=False)
-    animation.write_videofile("__temp_crash.mp4", fps=fps, audio=False,
-                              preset=args.compression,
-                              threads=args.in_parallel)
-    os.rename("__temp_crash.mp4", outfile)
+    animation.write_videofile(outfile, fps=fps)
 
 
 def run_moving_crash(args, target, outfile):
@@ -250,7 +242,7 @@ def run_moving_crash(args, target, outfile):
     bounds = foreground.get_fg_bounds(img.shape[1], args.max_depth)
     max_depth = bounds.max_depth
     crash_params = crash.CrashParams(
-        max_depth, args.threshold, args.bg_value, args.rgb_select)
+        max_depth, args.threshold, args.bg_value)
     options = _options(args.reveal_foreground, args.reveal_background,
                        args.crash, args.reveal_quadrants, args.bg_value)
     frames = video.iter_frames(fps=video.fps)
@@ -299,10 +291,10 @@ def _process_and_write_last_img(target_file, output_file, args, save_latest=Fals
     twice (once to LAST_CRASH.jpg) for convenience in the photo booth."""
     img = util.read_img(target_file)
     params = crash.CrashParams(
-        args.max_depth, args.threshold, args.bg_value, args.rgb_select)
+        args.max_depth, args.threshold, args.bg_value)
     fg, bounds = foreground.find_foreground(img, params)
     options = _options(args.reveal_foreground, args.reveal_background,
-                       args.crash, args.reveal_quadrants)
+                       args.crash, args.reveal_quadrants, args.bg_value)
     new_img = _process_img(img, fg, bounds, options)
     util.save_img(output_file, new_img)
     if save_latest:
