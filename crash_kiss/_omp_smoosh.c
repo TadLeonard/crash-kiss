@@ -7,7 +7,7 @@
 #include <stdint.h>
 #include <stdlib.h>
 #include <stdio.h>
-#include <omp.h>
+//#include <omp.h>
 
 
 void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
@@ -18,13 +18,19 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
     // we'll multiply by 3 to stride across our RGB image array
     const int stride = cols;  // row stride for foreground mask array
     const int middle = stride / 2;
-    const int absolute_max = max_depth < cols/2 ? max_depth : cols/2;
+    // const int absolute_max = max_depth < cols/2 ? max_depth : cols/2;
+    //const int absolute_max = max_depth < cols ? max_depth : cols - 1;
+    const int absolute_max = max_depth;
+    printf("max: %i\n", absolute_max);
 
     // R, G, and B channels anded/shifted from the background_value int
     // We'll use this backgound color to fill in vacated space
     const int bg_rgb[] =  {background_value & 0xFF,
                           (background_value & 0xFF00) >> 8,
                           (background_value & 0xFF0000) >> 16};
+
+    // Keep track of total rows that have been crushed 
+    int total_crushed;
 
     // The OpenMP loop over all image row indices
     int i;
@@ -38,14 +44,14 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
 
         // Now we find where the foreground on each side meet
         int j;
-        //for (j = l_in; j > middle-absolute_max*2; j--) {
-        for (j = l_in; j > absolute_max; j--) {
+        for (j = l_in; j > middle-absolute_max*2; j--) {
+        //for (j = l_in; j > absolute_max; j--) {
             if (foreground[fg_offs+j])
                 break;
         }
         int l_out = j;  // left outer cursor is set
-        //for (j = r_in; j < middle+absolute_max*2; j++) {
-        for (j = r_in; j < cols-1-absolute_max; j++) {
+        for (j = r_in; j < middle+absolute_max*2; j++) {
+        //for (j = r_in; j < cols-1-absolute_max; j++) {
             if (foreground[fg_offs+j])
                 break;
         }
@@ -177,7 +183,7 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
             }
         }
 
-        // Clear vacated space on left edge
+        // Clear vacated space on right edge
         for (j = cols-1-r_dist; j <= cols-1; j++) {
             for (k = 0; k < 3; k++) {
                 img[img_offs + j*3 + k] = bg_rgb[k];
