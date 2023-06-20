@@ -4,7 +4,6 @@ import cython
 from cython.parallel import prange
 
 
-
 @cython.boundscheck(False)
 @cython.wraparound(False)
 @cython.nonecheck(False)
@@ -23,14 +22,14 @@ def smoosh(np.ndarray[np.uint8_t, ndim=3] img,
     cdef int to_collapse = 0
     cdef int i, j, jnext, k, left, right
     cdef int ls, rs
-         
+
     for i in range(nrows):
         ls = lstart[i]
         rs = rstart[i]
         travel = (rs + ls) / 2
         right = midline + rs
         left = midline - ls
-        meet = left + (right - left) / 2 
+        meet = left + (right - left) / 2
         if travel < depth:
             collapse_max = to_collapse = depth - travel
         else:
@@ -56,10 +55,10 @@ def smoosh(np.ndarray[np.uint8_t, ndim=3] img,
         for j in range(j, -1, -1):
             for k in range(chans):
                 img[i, j, k] = 255
-        
+
         # collapse from center to right
         to_collapse = collapse_max
-        j = meet 
+        j = meet
         jnext = j + travel
         while jnext < midline + depth:
             if to_collapse and not foreground[i, jnext]:
@@ -96,7 +95,7 @@ def smoosh_overlap(
     cdef int to_collapse = 0
     cdef int i, j, jnext, k, midline, left, right
     cdef int ls, rs
-    midline = ncols / 2 
+    midline = ncols / 2
 
     for i in range(nrows):
         if not is_left_overlap[i]:
@@ -106,20 +105,20 @@ def smoosh_overlap(
     for i in range(nrows):
         travel = 0
         for j in range(midline, midline + depth):
-            if not foreground[i, j]:  # background gap found 
+            if not foreground[i, j]:  # background gap found
                 break
         if j == midline + depth - 1:
             is_left_overlap[i] = not is_left_overlap[i]
             foreground[i] = foreground[i, ::-1]
             img[i] = img[i, ::-1]
             for j in range(midline, midline + depth):
-                if not foreground[i, j]:  # background gap found 
+                if not foreground[i, j]:  # background gap found
                     break
         for jnext in range(j+3, j + depth + 3):
             if foreground[i, jnext]:  # end of background gap found
                 break
             else:
-                travel += 1 
+                travel += 1
         travel += 3
         travel /= 2
         meet = j + travel
@@ -148,10 +147,10 @@ def smoosh_overlap(
         for j in range(j, -1, -1):
             for k in range(chans):
                 img[i, j, k] = 255
-        
+
         # collapse from center to right
         to_collapse = collapse_max
-        j = meet 
+        j = meet
         jnext = j + travel
         while jnext < midline + depth:
             if to_collapse and not foreground[i, jnext]:
@@ -174,4 +173,4 @@ def smoosh_overlap(
         if not is_left_overlap[i]:
             foreground[i] = foreground[i, ::-1]
             img[i] = img[i, ::-1]
- 
+
