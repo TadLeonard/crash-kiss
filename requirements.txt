@@ -3,5 +3,4 @@ Cython
 imageio
 moviepy
 pytest
-six
 tqdm
