@@ -42,20 +42,20 @@ def test_odd_chunks():
     stuff = range(15)
     chunks = list(kiss._chunks(stuff, 4))
     assert chunks == [range(3), range(3, 6), range(6, 9), range(9, 15)]
-    
+
 
 ### Test crashing two subjects towards the center
 
 def test_conservation_of_foreground():
-    """Ensure that `center_crash` doesn't overwrite pixels or somehow 
+    """Ensure that `center_crash` doesn't overwrite pixels or somehow
     delete them when it crashes a simple image"""
     img = util.combine_images([_get_test_img(), _get_test_img()])
     params = crash.CrashParams(50, 10, 255, [0, 1, 2])
     total_fg_area, bounds = foreground.find_foreground(img, params)
-    total_fg_pixels = np.sum(total_fg_area)  
-    crash.center_crash(img, total_fg_area, bounds)
+    total_fg_pixels = np.sum(total_fg_area)
+    crash.center_crash(img, total_fg_area, bounds, 0)#(0, 0, 0))
     total_fg_area_after = foreground.find_foreground(img, params)
-    total_fg_pixels_after = np.sum(total_fg_area)  
+    total_fg_pixels_after = np.sum(total_fg_area)
     assert total_fg_pixels_after == total_fg_pixels
 
 
@@ -69,7 +69,7 @@ def test_center_crash_mov_crash_1():
     by that amount."""
     data_in =  _ints("0000 1010 2110 0010 1011")
     data_out = _ints("0000 0011 2110 1010 1111")  # expected result
-    crash_data, row_data = _row(data_in, )    
+    crash_data, row_data = _row(data_in, )
     params = crash.CrashParams(50, 10, 255, [0, 1, 2])
     total_fg_area, bounds = foreground.find_foreground(row_data, params)
     assert np.all(row_data.irow == data_in)  # just a sanity check
@@ -85,7 +85,7 @@ def test_center_crash_mov_crash_2():
     # NOTE: middle is here          |
     data_in =  _ints("00000 03010 00000 00010 03011")
     data_out = _ints("00000 00000 03110 03011 00000")
-    crash_data, row_data = _row(data_in, )    
+    crash_data, row_data = _row(data_in, )
     assert np.all(row_data.irow == data_in)  # just a sanity check
     crash.mov_crash(crash_data, row_data)  # crash the row
     _clear(crash_data, row_data)
@@ -186,7 +186,7 @@ def test_center_obstructed():
 
 
 def _row(data, max_depth=None):
-    """Make a `crash._row_data` namedtuple instance based on a list of 
+    """Make a `crash._row_data` namedtuple instance based on a list of
     ones (or other numbers) and zeros to represent a background mask
     (where 0==background and foreground>=1)"""
     max_depth = max_depth or len(data)
@@ -206,7 +206,7 @@ def _row(data, max_depth=None):
     crash_data = crash._crash_data(
         start, stop, fg_mid, max_depth, fg_l, fg_r, mid_left,
         center, mid_right, side_len)
-                                    
+
     # assemble _row_data namedtuple
     ls = fg_row[:fg_mid:-1].argmax()  # distance from center to left subject
     rs = fg_row[fg_mid:].argmax()  # distance from center to right subject
