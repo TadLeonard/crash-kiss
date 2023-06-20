@@ -3,17 +3,14 @@ selection), these functions move pixels in an image around to create
 various "crash" effects. Images can have their foregrounds crashed into
 the center of the image, the side of the image, and so on."""
 
-from __future__ import print_function, division
 from collections import namedtuple
 from itertools import repeat
 import os
 import sys
 import time
 import numpy as np
-from six.moves import zip, range
 from crash_kiss import util, foreground
 from crash_kiss.config import WHITE
-#from crash_kiss import smoosh
 from crash_kiss.omp_smoosh import smoosh
 
 
@@ -130,7 +127,7 @@ class CrashParams(object):
     a `multiprocessing.Process` object. Usually a `namedtuple` or some
     other simple container would be better, but `namedtuple` is not
     picklable!"""
-    _params = "max_depth threshold bg_value rgb_select".split()
+    _params = "max_depth threshold bg_value".split()
 
     def __init__(self, *args, **kwargs):
         given_args = dict(zip(self._params, repeat(None)))

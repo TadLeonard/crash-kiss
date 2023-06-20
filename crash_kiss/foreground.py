@@ -13,7 +13,6 @@ from collections import namedtuple
 from crash_kiss.config import BLACK, WHITE, FULL_DEPTH
 from crash_kiss import util
 import numpy as np
-from six.moves import range
 
 
 def find_foreground(img, params):
@@ -29,8 +28,8 @@ def find_foreground(img, params):
 def trim_foreground(img, foreground, params):
     bounds = get_fg_bounds(img.shape[1], params.max_depth)
     difference = (img.shape[1] - foreground.shape[1]) / 2
-    start = bounds.start - difference
-    stop = bounds.stop - difference
+    start = int(round(bounds.start - difference))
+    stop = int(round(bounds.stop - difference))
     return foreground[:, start: stop], bounds
 
 
