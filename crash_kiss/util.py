@@ -2,12 +2,12 @@
 
 import os
 import imageio
-from six.moves import zip
 import numpy as np
+
 from crash_kiss import config
 
 
-def read_img(file_name):
+def read_img(file_name: str):
     return imageio.imread(file_name)
 
 
