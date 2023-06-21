@@ -1,11 +1,16 @@
-from __future__ import print_function
 import os
+import re
 import itertools
+import tempfile
+
 import imageio
 import numpy as np
-from crash_kiss import util, foreground, crash
+
 import kiss
 import pytest
+
+from pathlib import Path
+from crash_kiss import util, foreground, crash, booth
 
 
 def _get_test_img():
@@ -170,6 +175,28 @@ def test_contiguous_chunks():
     chunks = crash._contiguous_chunks(mask, img)
     chunks = [list(chunk[0]) for chunk in chunks]
     assert chunks == [[3, 4], [6], [9]]
+
+
+def test_booth_filter_files():
+    with tempfile.TemporaryDirectory() as tdir:
+        file_a = tempfile.NamedTemporaryFile(dir=tdir, prefix="FILE_A", suffix=".jpg")
+        file_b = tempfile.NamedTemporaryFile(dir=tdir, prefix="FILE_B", suffix=".png")
+        file_c = tempfile.NamedTemporaryFile(dir=tdir, prefix="FILE_C", suffix=".jpg")
+        dir_d = tempfile.TemporaryDirectory(dir=tdir)
+        files = set(booth.local_files(directory=Path(tdir)))
+        assert files == {Path(file_a.name), Path(file_b.name), Path(file_c.name)}
+
+        filt_jpg = lambda p: p.name.endswith("jpg")
+        jpgs = set(booth.local_files(filt_jpg, directory=Path(tdir)))
+        assert jpgs == {Path(file_a.name), Path(file_c.name)}
+
+        def filt_a(p: Path) -> bool:
+            return bool(re.match("^FILE_A\S+\.\S+", p.name))
+
+        a_jpgs = set(booth.local_files(filt_jpg, filt_a, directory=Path(tdir)))
+        assert a_jpgs == {Path(file_a.name),}
+
+        dir_d.cleanup()
 
 
 @pytest.mark.skip
