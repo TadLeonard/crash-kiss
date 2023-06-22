@@ -21,7 +21,6 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
     // const int absolute_max = max_depth < cols/2 ? max_depth : cols/2;
     //const int absolute_max = max_depth < cols ? max_depth : cols - 1;
     const int absolute_max = max_depth;
-    printf("max: %i\n", absolute_max);
 
     // R, G, and B channels anded/shifted from the background_value int
     // We'll use this backgound color to fill in vacated space
