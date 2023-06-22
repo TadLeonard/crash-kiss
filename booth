@@ -1,0 +1,100 @@
+#!/usr/bin/env python3
+
+import argparse
+import ast
+import time
+
+from pathlib import Path
+
+import yaspin
+import yaspin.spinners
+from yaspin import kbi_safe_yaspin
+
+import crash_kiss.booth
+import crash_kiss.scriptutil
+
+
+parser = argparse.ArgumentParser(
+    description="Run the Crash Kiss photo booth",
+    formatter_class=argparse.ArgumentDefaultsHelpFormatter
+)
+parser.add_argument("-i", "--input-dir", default=".")
+parser.add_argument("-o", "--output_dir", default=".")
+
+group = parser.add_argument_group("Crash options")
+group.add_argument("target", nargs="?", help="path to an image file to process")
+group.add_argument("-c", "--crash", action="store_true",
+                   help="crash subjects toward the center of the frame")
+group.add_argument("-t", "--threshold",
+                    help="min difference between background and foreground ",
+                    default=70, type=int)
+group.add_argument("-b", "--bg-value",
+                    help="A number to represent the color of the background "
+                         "should the user want to manually set it. Use "
+                         "'auto' to automatically gather per-row "
+                         "background values.",
+                      default="0x00")
+group.add_argument("-d", "--max-depth", type=int,
+                    default=300,
+                    help="Max number of pixels that the left and right "
+                         "subjects will smoosh into each other. Neither face "
+                         "will collapse by more than max_depth")
+
+dbug_group = parser.add_argument_group("debug options")
+dbug_group.add_argument("-e", "--reveal-foreground", action="store_true")
+dbug_group.add_argument("-E", "--reveal-background", action="store_true")
+dbug_group.add_argument("-q", "--reveal-quadrants", action="store_true",
+                        help="reveal the inner and outer quadrants of the "
+                             "'crashable area' with vertical lines")
+
+video_group = parser.add_argument_group("Video options")
+video_group.add_argument("-s", "--stepsize", type=int, default=1,
+                         help="create an mp4 animation of crash kisses from 0 to "
+                              "--max-depth in steps of STEPSIZE size")
+video_group.add_argument("--fps", type=int, default=60)
+video_group.add_argument("--compression", default="veryfast",
+                         choices=("ultrafast", "veryfast", "fast",))
+
+
+def run(spinner: yaspin.Spinner):
+    args = parser.parse_args()
+    try:
+        args.bg_value = ast.literal_eval(args.bg_value)
+        assert isinstance(args.bg_value, int)
+    except ValueError:
+        parser.error("Specify an integer background value (e.g. '0x10' or '16'")
+    animation_config = crash_kiss.scriptutil.AnimationConfig(
+        spinner,
+        max_depth=args.max_depth,
+        stepsize=args.stepsize,
+        threshold=args.threshold,
+        bg_value=args.bg_value,
+        fps=args.fps,
+        reveal_foreground=args.reveal_foreground,
+        reveal_background=args.reveal_background
+    )
+
+    input_path = Path(args.input_dir)
+    output_path = Path(args.input_dir)
+    new_jpgs = crash_kiss.booth.NewJpgs(input_path)
+
+    spinner.text = f"Scanning for JPEGs in {input_path.absolute()}"
+    spinner.spinner = yaspin.spinners.Spinners.simpleDotsScrolling
+    while True:
+        if new_jpgs.scan():
+            for img_path in new_jpgs:
+                spinner.write(f"📸 New JPEG: {img_path.name}")
+                video_path = crash_kiss.scriptutil.make_crash_video(img_path, output_path, animation_config)
+                spinner.write(f"❤️  Wrote video {video_path.absolute()}")
+                spinner.text = f"Scanning for JPEGs in {input_path.absolute()}"
+                spinner.spinner = yaspin.spinners.Spinners.simpleDotsScrolling
+        else:
+            time.sleep(0.25)
+
+
+if __name__ == "__main__":
+    with kbi_safe_yaspin().bold.right as spinner:
+        try:
+            run(spinner)
+        except KeyboardInterrupt:
+            spinner.ok("Bye!")

@@ -4,3 +4,4 @@ imageio
 moviepy
 pytest
 tqdm
+yaspin
