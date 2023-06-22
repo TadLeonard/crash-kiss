@@ -83,7 +83,7 @@ def run(spinner: yaspin.Spinner):
     while True:
         if new_jpgs.scan():
             for img_path in new_jpgs:
-                spinner.write(f"📸 New JPEG: {img_path.name}")
+                spinner.write(f"📸 New JPEG: {img_path.absolute()}")
                 video_path = crash_kiss.scriptutil.make_crash_video(img_path, output_path, animation_config)
                 spinner.write(f"❤️  Wrote video {video_path.absolute()}")
                 spinner.text = f"Scanning for JPEGs in {input_path.absolute()}"
