@@ -30,9 +30,7 @@ def make_crash_video(image_path: Path, out_path: Path, config: AnimationConfig) 
     img = util.read_img(str(image_path))
     bounds = foreground.get_fg_bounds(img.shape[1], config.max_depth)
     max_depth = bounds.max_depth
-    crash_params = crash.CrashParams(
-        max_depth, config.threshold, config.bg_value
-    )
+    crash_params = crash.CrashParams(max_depth, config.threshold, config.bg_value)
     depths = range(max_depth, -config.stepsize, -config.stepsize)
     depths = [d for d in depths if d > 0]
     depths.append(0)
@@ -49,8 +47,7 @@ def make_crash_video(image_path: Path, out_path: Path, config: AnimationConfig) 
         depth = depths[-frame_no]
         this_img = img.copy()
         if depth:
-            params = crash.CrashParams(
-                depth, config.threshold, config.bg_value)
+            params = crash.CrashParams(depth, config.threshold, config.bg_value)
             new_fg, new_bounds = foreground.trim_foreground(this_img, fg, params)
             new_img = _process_img(this_img, new_fg, new_bounds, config)
         else:
@@ -64,7 +61,9 @@ def make_crash_video(image_path: Path, out_path: Path, config: AnimationConfig) 
     return video_path
 
 
-def _process_img(img: "np.ndarray", foreground: "np.ndarray", bounds, config: AnimationConfig):
+def _process_img(
+    img: "np.ndarray", foreground: "np.ndarray", bounds, config: AnimationConfig
+):
     """Does none or more of several things to `img` based on the given
     `AnimationConfig` options."""
     if config.reveal_foreground:
