@@ -3,13 +3,16 @@ import re
 import itertools
 import tempfile
 
+from collections import deque
+from pathlib import Path
+from typing import Tuple
+
 import imageio
 import numpy as np
 
 import kiss
 import pytest
 
-from pathlib import Path
 from crash_kiss import util, foreground, crash, booth
 
 
@@ -183,20 +186,67 @@ def test_booth_filter_files():
         file_b = tempfile.NamedTemporaryFile(dir=tdir, prefix="FILE_B", suffix=".png")
         file_c = tempfile.NamedTemporaryFile(dir=tdir, prefix="FILE_C", suffix=".jpg")
         dir_d = tempfile.TemporaryDirectory(dir=tdir)
-        files = set(booth.local_files(directory=Path(tdir)))
+        files = set(booth.iter_files(directory=Path(tdir)))
         assert files == {Path(file_a.name), Path(file_b.name), Path(file_c.name)}
 
         filt_jpg = lambda p: p.name.endswith("jpg")
-        jpgs = set(booth.local_files(filt_jpg, directory=Path(tdir)))
+        jpgs = set(booth.iter_files(filt_jpg, directory=Path(tdir)))
         assert jpgs == {Path(file_a.name), Path(file_c.name)}
 
         def filt_a(p: Path) -> bool:
-            return bool(re.match("^FILE_A\S+\.\S+", p.name))
+            return bool(re.match(r"^FILE_A\S+\.\S+", p.name))
 
-        a_jpgs = set(booth.local_files(filt_jpg, filt_a, directory=Path(tdir)))
+        a_jpgs = set(booth.iter_files(filt_jpg, filt_a, directory=Path(tdir)))
         assert a_jpgs == {Path(file_a.name),}
 
         dir_d.cleanup()
+
+
+def _temp_and_path(tdir: tempfile.TemporaryDirectory,
+                   prefix: str, suffix: str) -> Tuple[tempfile.NamedTemporaryFile, Path]:
+    temp = tempfile.NamedTemporaryFile(dir=tdir, prefix=prefix, suffix=suffix)
+    temp.write(b"Hello\n")
+    return temp, Path(temp.name)
+
+
+def test_iter_new_jpgs():
+    with tempfile.TemporaryDirectory() as tdir:
+
+        # create a new file, A, before NewJpgs is instantiated
+        file_a, path_a = _temp_and_path(tdir, "FILE_A", ".jpg")
+        new_jpgs = booth.NewJpgs(Path(tdir))
+
+        # assert that the preexisting file is not iterated over
+        assert next(new_jpgs) is None
+        assert list(new_jpgs) == []  # check of __iter__
+
+        # create two new files, B and C, and check that C is yielded
+        file_b, _ = _temp_and_path(tdir, "FILE_B", ".png")
+        file_c, path_c = _temp_and_path(tdir, "FILE_C", ".jpeg")
+        assert next(new_jpgs) == path_c
+        assert new_jpgs.consumed == deque([path_c])
+
+        # create two new files, D and E
+        file_d, path_d = _temp_and_path(tdir, "FILE_D", ".jpg")
+        file_e, path_e = _temp_and_path(tdir, "FILE_E", ".jpg")
+
+        # check that scan() adds D and E
+        assert new_jpgs.new == deque([])
+        new_jpgs.scan()
+        assert new_jpgs.new == deque([path_d, path_e])
+
+        # check that iterating over NewJpg consumes D and E
+        assert new_jpgs.consumed == deque([path_c])
+        assert list(new_jpgs) == [path_d, path_e]
+        assert new_jpgs.consumed == deque([path_c, path_d, path_e])
+
+        # finally, check that nothing more can be consumed from the iterator
+        assert list(new_jpgs) == []
+        assert next(new_jpgs, None) is None
+
+
+def test_booth_iter_files_default_dir():
+    assert Path(__file__) in booth.iter_files()
 
 
 @pytest.mark.skip
