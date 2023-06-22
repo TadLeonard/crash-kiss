@@ -18,8 +18,6 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
     // we'll multiply by 3 to stride across our RGB image array
     const int stride = cols;  // row stride for foreground mask array
     const int middle = stride / 2;
-    // const int absolute_max = max_depth < cols/2 ? max_depth : cols/2;
-    //const int absolute_max = max_depth < cols ? max_depth : cols - 1;
     const int absolute_max = max_depth;
 
     // R, G, and B channels anded/shifted from the background_value int
@@ -27,9 +25,6 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
     const int bg_rgb[] =  {background_value & 0xFF,
                           (background_value & 0xFF00) >> 8,
                           (background_value & 0xFF0000) >> 16};
-
-    // Keep track of total rows that have been crushed 
-    int total_crushed;
 
     // The OpenMP loop over all image row indices
     int i;
@@ -44,13 +39,11 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
         // Now we find where the foreground on each side meet
         int j;
         for (j = l_in; j > middle-absolute_max*2; j--) {
-        //for (j = l_in; j > absolute_max; j--) {
             if (foreground[fg_offs+j])
                 break;
         }
         int l_out = j;  // left outer cursor is set
         for (j = r_in; j < middle+absolute_max*2; j++) {
-        //for (j = r_in; j < cols-1-absolute_max; j++) {
             if (foreground[fg_offs+j])
                 break;
         }
@@ -62,21 +55,19 @@ void _omp_smoosh_2d(uint8_t *img, uint8_t *foreground,
         int r_in_orig = r_in;
         int l_in_orig = l_in;
 
-        // Find start indices of background pixels on LHS and RHS
-        for (j = l_in; j >= 0; j--) {
+        // Find LHS inner index
+        for (j = l_in; j >= l_out; j--) {
             if (!foreground[fg_offs+j])
                 break;  // we found the background on the left
         }
         l_in = j;
-        if (l_in > l_out + absolute_max)
-            l_in = l_out + absolute_max;
-        for (j = r_in; j < cols-1; j++) {
+
+        // Find RHS inner index
+        for (j = r_in; j < r_out; j++) {
             if (!foreground[fg_offs+j])
                 break;  // we found the background on the right
         }
         r_in = j;
-        if (r_in < r_out - absolute_max)
-            r_in = r_out - absolute_max;
 
         // Collapse background pixels, not to exceed absolute_max
         int k;  // RGB color channel index
