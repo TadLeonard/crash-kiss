@@ -1,5 +1,6 @@
 import dataclasses
 import shutil
+import numpy as np
 
 from typing import Union, Tuple
 from pathlib import Path
@@ -23,8 +24,8 @@ class AnimationConfig:
     fps: int = 60
     reveal_foreground: bool = False
     reveal_background: bool = False
-    first_frame_pause: float = 1.0
-    last_frame_pause: float = 3.0
+    first_frame_pause: float = 2.0
+    last_frame_pause: float = 5.0
     output_path: Path = Path(".")
     latest_output_path: Path = Path("crash.mp4")
 
@@ -45,6 +46,7 @@ def make_crash_video(image_path: Path, config: AnimationConfig) -> Path:
     fps = config.fps
     duration = len(depths) / fps
     fg, bounds = foreground.find_foreground(img, crash_params)
+    util.save_img("foreground.jpg", fg.astype(np.uint8) * 255)
 
     def make_frame(time):
         frame_no = int(round(time * fps))
