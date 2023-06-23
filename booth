@@ -23,13 +23,6 @@ parser.add_argument("-o", "--output-dir", default=".")
 parser.add_argument("-O", "--latest-output-path", default="crash.mp4")
 
 group = parser.add_argument_group("Crash options")
-group.add_argument("target", nargs="?", help="path to an image file to process")
-group.add_argument(
-    "-c",
-    "--crash",
-    action="store_true",
-    help="crash subjects toward the center of the frame",
-)
 group.add_argument(
     "-t",
     "--threshold",
@@ -59,13 +52,6 @@ group.add_argument(
 dbug_group = parser.add_argument_group("debug options")
 dbug_group.add_argument("-e", "--reveal-foreground", action="store_true")
 dbug_group.add_argument("-E", "--reveal-background", action="store_true")
-dbug_group.add_argument(
-    "-q",
-    "--reveal-quadrants",
-    action="store_true",
-    help="reveal the inner and outer quadrants of the "
-    "'crashable area' with vertical lines",
-)
 
 video_group = parser.add_argument_group("Video options")
 video_group.add_argument(
