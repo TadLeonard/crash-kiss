@@ -25,7 +25,7 @@ def find_foreground(img, params):
     by checking to see if the background value is near 0 or 255."""
     view, bounds = get_foreground_area(img, params.max_depth)
     fg = compare_background(view, params.bg_value, params.threshold)
-    util.save_img("fg.jpg", fg * 255)
+    #util.save_img("fg.jpg", fg * 255)
     return fg, bounds
 
 

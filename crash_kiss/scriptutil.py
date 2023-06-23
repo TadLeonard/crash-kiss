@@ -4,6 +4,7 @@ from typing import Union, Tuple
 from pathlib import Path
 
 from moviepy.editor import VideoClip
+import moviepy.video.fx.all as vfx
 import yaspin.spinners
 
 from . import foreground
@@ -14,13 +15,15 @@ from . import util
 @dataclasses.dataclass
 class AnimationConfig:
     progress_spinner: "yaspin.Spinner"
-    max_depth: int = 300
+    max_depth: int = 350
     stepsize: int = 1
-    threshold: int = 70
+    threshold: int = 15
     bg_value: Union[int, Tuple[int, int, int]] = (0, 0, 0)
     fps: int = 60
     reveal_foreground: bool = False
     reveal_background: bool = False
+    first_frame_pause: float = 1.0
+    last_frame_pause: float = 3.0
 
 
 def make_crash_video(image_path: Path, out_path: Path, config: AnimationConfig) -> Path:
@@ -46,6 +49,11 @@ def make_crash_video(image_path: Path, out_path: Path, config: AnimationConfig) 
             frame_no = n_frames - 1
         depth = depths[-frame_no]
         this_img = img.copy()
+
+        if depth == 0:
+            # util.save_img("first.png", this_img)
+            return this_img
+
         if depth:
             params = crash.CrashParams(depth, config.threshold, config.bg_value)
             new_fg, new_bounds = foreground.trim_foreground(this_img, fg, params)
@@ -55,9 +63,23 @@ def make_crash_video(image_path: Path, out_path: Path, config: AnimationConfig) 
         config.progress_spinner.text = f"Crashed {frame_no}/{len(depths)} frames"
         return new_img
 
-    animation = VideoClip(make_frame, duration=duration)
+    animation = (
+        VideoClip(make_frame, duration=duration)
+        .fx(
+            vfx.freeze,
+            t=1.0 / 60.0,
+            freeze_duration=config.first_frame_pause,
+            padding_end=1.0 / 60.0,
+        )
+        .fx(
+            vfx.freeze,
+            t="end",
+            freeze_duration=config.last_frame_pause,
+            padding_end=1.0 / 60.0,
+        )
+    )
     video_path = (out_path / image_path.name).absolute().with_suffix(".mp4")
-    animation.write_videofile(str(video_path), fps=fps, logger=None, codec="png")
+    animation.write_videofile(str(video_path), fps=fps, logger=None)
     return video_path
 
 

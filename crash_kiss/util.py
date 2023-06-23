@@ -4,6 +4,8 @@ import os
 import imageio
 import numpy as np
 
+from pathlib import Path
+
 from crash_kiss import config
 
 
@@ -12,8 +14,11 @@ def read_img(file_name: str):
 
 
 def save_img(file_name, img):
-    opts = {"quality": 100}  # max JPEG quality
-    imageio.imwrite(file_name, img, opts=opts)
+    if Path(file_name).suffix.lower() in (".jpg", ".jpeg"):
+        opts = {"quality": 100}  # max JPEG quality
+        imageio.imwrite(file_name, img, opts=opts)
+    else:
+        imageio.imwrite(file_name, img)
 
 
 def combine_images(imgs, horizontal=True):
