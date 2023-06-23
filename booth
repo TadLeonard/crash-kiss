@@ -19,7 +19,8 @@ parser = argparse.ArgumentParser(
     formatter_class=argparse.ArgumentDefaultsHelpFormatter,
 )
 parser.add_argument("-i", "--input-dir", default=".")
-parser.add_argument("-o", "--output_dir", default=".")
+parser.add_argument("-o", "--output-dir", default=".")
+parser.add_argument("-O", "--latest-output-path", default="crash.mp4")
 
 group = parser.add_argument_group("Crash options")
 group.add_argument("target", nargs="?", help="path to an image file to process")
@@ -94,6 +95,9 @@ def run(spinner: yaspin.Spinner):
         assert isinstance(args.bg_value, int)
     except ValueError:
         parser.error("Specify an integer background value (e.g. '0x10' or '16'")
+
+    input_path = Path(args.input_dir)
+    output_path = Path(args.output_dir)
     animation_config = crash_kiss.scriptutil.AnimationConfig(
         spinner,
         max_depth=args.max_depth,
@@ -103,10 +107,10 @@ def run(spinner: yaspin.Spinner):
         fps=args.fps,
         reveal_foreground=args.reveal_foreground,
         reveal_background=args.reveal_background,
+        output_path=output_path,
+        latest_output_path=Path(args.latest_output_path),
     )
 
-    input_path = Path(args.input_dir)
-    output_path = Path(args.output_dir)
     new_jpgs = crash_kiss.booth.NewJpgs(input_path)
 
     spinner.text = f"Scanning for JPEGs in {input_path.absolute()}"
@@ -117,7 +121,7 @@ def run(spinner: yaspin.Spinner):
                 spinner.write(f"📸 New JPEG: {img_path.absolute()}")
                 start_t = time.time()
                 video_path = crash_kiss.scriptutil.make_crash_video(
-                    img_path, output_path, animation_config
+                    img_path, animation_config
                 )
                 spinner.write(
                     f"❤️  Wrote video {video_path.absolute()} "

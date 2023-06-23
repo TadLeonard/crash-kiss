@@ -1,4 +1,5 @@
 import dataclasses
+import shutil
 
 from typing import Union, Tuple
 from pathlib import Path
@@ -24,9 +25,11 @@ class AnimationConfig:
     reveal_background: bool = False
     first_frame_pause: float = 1.0
     last_frame_pause: float = 3.0
+    output_path: Path = Path(".")
+    latest_output_path: Path = Path("crash.mp4")
 
 
-def make_crash_video(image_path: Path, out_path: Path, config: AnimationConfig) -> Path:
+def make_crash_video(image_path: Path, config: AnimationConfig) -> Path:
     """Creates an animated crash based on a still image input"""
     config.progress_spinner.spinner = yaspin.spinners.Spinners.hearts
     config.progress_spinner.text = "Preparing to crash"
@@ -63,6 +66,7 @@ def make_crash_video(image_path: Path, out_path: Path, config: AnimationConfig) 
         config.progress_spinner.text = f"Crashed {frame_no}/{len(depths)} frames"
         return new_img
 
+    # Write out the video file to the output directory
     animation = (
         VideoClip(make_frame, duration=duration)
         .fx(
@@ -78,8 +82,11 @@ def make_crash_video(image_path: Path, out_path: Path, config: AnimationConfig) 
             padding_end=1.0 / 60.0,
         )
     )
-    video_path = (out_path / image_path.name).absolute().with_suffix(".mp4")
+    video_path = (config.output_path / image_path.name).absolute().with_suffix(".mp4")
     animation.write_videofile(str(video_path), fps=fps, logger=None)
+
+    # Copy over the latest video file
+    shutil.copy(video_path, config.latest_output_path)
     return video_path
 
 
