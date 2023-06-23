@@ -80,7 +80,7 @@ def compare_background(img, background, threshold):
     else:
         colorful_enough = np.ones_like(light_enough)
 
-    return foreground.astype(np.bool) & colorful_enough
+    return foreground.astype(bool) & colorful_enough
 
 
 def get_edges(img: "np.ndarray") -> "np.ndarray":
