@@ -57,7 +57,7 @@ def make_crash_video(image_path: Path, out_path: Path, config: AnimationConfig) 
 
     animation = VideoClip(make_frame, duration=duration)
     video_path = (out_path / image_path.name).absolute().with_suffix(".mp4")
-    animation.write_videofile(str(video_path), fps=fps, logger=None)
+    animation.write_videofile(str(video_path), fps=fps, logger=None, codec="png")
     return video_path
 
 

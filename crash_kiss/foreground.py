@@ -8,11 +8,14 @@ a part of the 'foreground' if ANY of R, G, or B is different enough than
 `bg_value`. In other words,
 `is_foreground = any(color - threshold > threshold for color in pixel)"""
 
-from __future__ import division
+import cv2
+import numpy as np
+
+from nphusl import to_husl
+
 from collections import namedtuple
 from crash_kiss.config import BLACK, WHITE, FULL_DEPTH
 from crash_kiss import util
-import numpy as np
 
 
 def find_foreground(img, params):
@@ -22,6 +25,7 @@ def find_foreground(img, params):
     by checking to see if the background value is near 0 or 255."""
     view, bounds = get_foreground_area(img, params.max_depth)
     fg = compare_background(view, params.bg_value, params.threshold)
+    util.save_img("fg.jpg", fg * 255)
     return fg, bounds
 
 
@@ -34,33 +38,80 @@ def trim_foreground(img, foreground, params):
 
 
 def compare_background(img, background, threshold):
-    """Compare a 2-D or 3-D image array to a background value given a
-    certain threshold"""
-    is_num = isinstance(background, int)
-    if is_num and background > 0xFF:
-        # check to see if our background value represents more
-        # than a single channel, convert to RGB tuple if so
-        r = background & 0xFF
-        g = (background & 0xFF00) >> 8
-        b = (background & 0xFF0000) >> 16
-        background = r, g, b
-        is_num = False
-    if not is_num and (background[0] == background[1] == background[2]):
-        # optimize for BG values like 0xFFFFFF or 0x808080 or 0x00
-        # This makes use of NumPy's more efficient broadcasting
-        is_num = True
-        background = background[0]
-    if is_num and (background - BLACK <= 5):
-        # optimize for BG values that are essentially black
-        diff = img - background > threshold
-    elif is_num and (WHITE - background <= 5):
-        # optimize for BG values that are essentially white
-        diff = background - img > threshold
+    assert isinstance(background, int)
+    r = background & 0xFF
+    g = (background & 0xFF00) >> 8
+    b = (background & 0xFF0000) >> 16
+    background = r, g, b
+
+    # Reject most pixels based on `threshold` lightness value and some pixels
+    # greather than `threshold` based on a combination of H, S, and L
+    bg_hue, bg_sat, bg_light = to_husl(background)
+    hsl = to_husl(img)  # a 3D array of hue, saturation, and lightness values
+    hue, saturation, lightness = hsl[..., 0], hsl[..., 1], hsl[..., 2]
+
+    if (bg_hue, bg_sat, bg_light) == (0., 0., 0.):
+        light_enough = lightness > threshold  # 5 works
     else:
-        diff = np.abs(img - background) > threshold
-    if len(diff.shape) == 3:
-        diff = np.any(diff, axis=2)  # we're using a 3D array
-    return diff.astype(np.uint8)
+        light_enough = np.abs(lightness - bg_light) > threshold
+
+    foreground = light_enough.astype(np.uint8)
+
+    whack_hue = (hue >= 300) | (hue < 22)  # assumes a certain nature of bg artifacts
+    too_dim = lightness < 25  # 18 works; assumes subject is always bright
+    desaturated = saturation < 40
+    foreground = np.logical_and(~(whack_hue & too_dim & desaturated), light_enough).astype(np.uint8)
+
+    foreground = foreground * 255
+    foreground = cv2.erode(foreground, (3, 3))
+    foreground = (cv2.GaussianBlur(foreground, (3, 3), 0) > 125).astype(np.uint8)
+    foreground = fill_holes(foreground.astype(np.uint8))
+    foreground = cv2.erode(foreground, (3, 3), iterations=2)
+
+    # Finally, if we have a colorful background check for a significant hue
+    # difference. The same threshold is used for lightness and hue given
+    # a saturated background color.
+    if bg_sat > 10:
+        # it's a colorful background
+        diff_a = np.abs(hue - bg_hue).astype(np.int)
+        diff_b = 360 - np.abs(hue - bg_hue).astype(np.int)
+        hue_difference = np.minimum.reduce([diff_a, diff_b])
+        colorful_enough = hue_difference >= threshold
+    else:
+        colorful_enough = np.ones_like(light_enough)
+
+    return foreground.astype(np.bool) & colorful_enough
+
+
+def get_edges(img: "np.ndarray") -> "np.ndarray":
+    # TODO: Finish this experiment
+    gray = cv2.cvtColor(img, cv2.COLOR_BGR2GRAY)
+    util.save_img("gray.jpg", gray)
+    blurred = cv2.GaussianBlur(gray, (5,5), 0)
+    edges = cv2.Canny(blurred, 10, 50)
+    util.save_img("edges.jpg", edges)
+    return edges
+
+
+def fill_holes(foreground: "np.ndarray") -> "np.ndarray":
+    holes = foreground * 255
+    dkernel = (3, 3)
+    holes = holes
+
+    # Fill borders with zeros to assist flood filling
+    holes[0, :] = 0
+    holes[-1, :] = 0
+    holes[:, 0] = 0
+    holes[:, -1] = 0
+
+    seed_point = holes.shape[1] // 2, holes.shape[0] // 2
+    if foreground[holes.shape[0] // 2, holes.shape[1] // 2]:
+        seed_point = (0, 0)
+    cv2.floodFill(holes, None, seed_point, 255)
+
+    holes = cv2.bitwise_not(holes)
+    fg = foreground.astype(bool) | holes.astype(bool)
+    return fg.astype(np.uint8)
 
 
 def get_foreground_area(img, max_depth):

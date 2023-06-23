@@ -5,3 +5,5 @@ moviepy
 pytest
 tqdm
 yaspin
+opencv-python
+nphusl
