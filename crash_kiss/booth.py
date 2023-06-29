@@ -23,6 +23,7 @@ IMG_EXTENSIONS = (
     "jpg",
     "jpeg",
     "tiff",
+    "tif",
     "png",
     "webp",
 )
