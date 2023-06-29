@@ -76,6 +76,8 @@ video_group.add_argument(
 
 def run(spinner: yaspin.Spinner):
     args = parser.parse_args()
+    if args.input_dir == args.output_dir:
+        parser.error("The input path can't be the same as the output path")
     try:
         args.bg_value = ast.literal_eval(args.bg_value)
         assert isinstance(args.bg_value, int)
