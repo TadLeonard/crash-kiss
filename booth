@@ -97,13 +97,13 @@ def run(spinner: yaspin.Spinner):
         latest_output_path=Path(args.latest_output_path),
     )
 
-    new_jpgs = crash_kiss.booth.NewJpgs(input_path)
+    new_images = crash_kiss.booth.NewImages(input_path)
 
     spinner.text = f"Scanning for JPEGs in {input_path.absolute()}"
     spinner.spinner = yaspin.spinners.Spinners.simpleDotsScrolling
     while True:
-        if new_jpgs.scan():
-            for img_path in new_jpgs:
+        if new_images.scan():
+            for img_path in new_images:
                 spinner.write(f"📸 New JPEG: {img_path.absolute()}")
                 start_t = time.time()
                 video_path = crash_kiss.scriptutil.make_crash_video(

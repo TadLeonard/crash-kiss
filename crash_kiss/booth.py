@@ -19,13 +19,22 @@ def iter_files(
             yield entry
 
 
-def _is_jpg(path: Path) -> bool:
-    return path.name.lower().endswith(("jpg", "jpeg"))
+IMG_EXTENSIONS = (
+    "jpg",
+    "jpeg",
+    "tiff",
+    "png",
+    "webp",
+)
 
 
-class NewJpgs:
+def is_image(path: Path) -> bool:
+    return path.name.lower().endswith(IMG_EXTENSIONS)
+
+
+class NewImages:
     """
-    Generates `Path` objects pointing to newly created JPEG files.
+    Generates `Path` objects pointing to newly created image files.
 
     Keeps track of consumed (yielded, iterated over) paths with
     `consumed` in the order they were consumed. New, unconsumed files are
@@ -47,7 +56,7 @@ class NewJpgs:
         self._initial_contents = set(self._list_paths())
 
     def _list_paths(self) -> Iterator[Path]:
-        return iter_files(_is_jpg, directory=self.path)
+        return iter_files(is_image, directory=self.path)
 
     @property
     def new(self) -> Deque[Path]:
@@ -80,6 +89,6 @@ class NewJpgs:
 
     def __next__(self):
         if self._new or self.scan():
-            new_jpg = self._new.popleft()
-            self._consumed.append(new_jpg)
-            return new_jpg
+            new_image = self._new.popleft()
+            self._consumed.append(new_image)
+            return new_image

@@ -183,7 +183,7 @@ def test_contiguous_chunks():
 def test_booth_filter_files():
     with tempfile.TemporaryDirectory() as tdir:
         file_a = tempfile.NamedTemporaryFile(dir=tdir, prefix="FILE_A", suffix=".jpg")
-        file_b = tempfile.NamedTemporaryFile(dir=tdir, prefix="FILE_B", suffix=".png")
+        file_b = tempfile.NamedTemporaryFile(dir=tdir, prefix="FILE_B", suffix=".mp4")
         file_c = tempfile.NamedTemporaryFile(dir=tdir, prefix="FILE_C", suffix=".jpg")
         dir_d = tempfile.TemporaryDirectory(dir=tdir)
         files = set(booth.iter_files(directory=Path(tdir)))
@@ -212,16 +212,16 @@ def _temp_and_path(tdir: tempfile.TemporaryDirectory,
 def test_iter_new_jpgs():
     with tempfile.TemporaryDirectory() as tdir:
 
-        # create a new file, A, before NewJpgs is instantiated
+        # create a new file, A, before NewImages is instantiated
         file_a, path_a = _temp_and_path(tdir, "FILE_A", ".jpg")
-        new_jpgs = booth.NewJpgs(Path(tdir))
+        new_jpgs = booth.NewImages(Path(tdir))
 
         # assert that the preexisting file is not iterated over
         assert next(new_jpgs) is None
         assert list(new_jpgs) == []  # check of __iter__
 
         # create two new files, B and C, and check that C is yielded
-        file_b, _ = _temp_and_path(tdir, "FILE_B", ".png")
+        file_b, _ = _temp_and_path(tdir, "FILE_B", ".mp4")
         file_c, path_c = _temp_and_path(tdir, "FILE_C", ".jpeg")
         assert next(new_jpgs) == path_c
         assert new_jpgs.consumed == deque([path_c])
@@ -235,7 +235,7 @@ def test_iter_new_jpgs():
         new_jpgs.scan()
         assert new_jpgs.new == deque([path_d, path_e])
 
-        # check that iterating over NewJpg consumes D and E
+        # check that iterating over NewImages consumes D and E
         assert new_jpgs.consumed == deque([path_c])
         assert list(new_jpgs) == [path_d, path_e]
         assert new_jpgs.consumed == deque([path_c, path_d, path_e])
@@ -243,6 +243,15 @@ def test_iter_new_jpgs():
         # finally, check that nothing more can be consumed from the iterator
         assert list(new_jpgs) == []
         assert next(new_jpgs, None) is None
+
+
+def test_is_image():
+    assert booth.is_image(Path("hork.png"))
+    assert not booth.is_image(Path("hork.mp4"))
+    assert not booth.is_image(Path("hork.mp4"))
+    assert not booth.is_image(Path("hork.jpg.gz"))
+    for ext in booth.IMG_EXTENSIONS:
+        assert booth.is_image(Path(f"hork.{ext}"))
 
 
 def test_booth_iter_files_default_dir():
