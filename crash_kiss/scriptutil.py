@@ -46,12 +46,33 @@ def make_crash_video(image_path: Path, config: AnimationConfig) -> Path:
     fps = config.fps
     duration = len(depths) / fps
     fg, bounds = foreground.find_foreground(img, crash_params)
-    util.save_img("foreground.jpg", fg.astype(np.uint8) * 255)
+    start, stop = bounds[:2]
+    temp_fg = np.zeros(img.shape[:2], dtype=np.uint8)
+    temp_fg[:, start:stop] = fg
+    first_image = img.copy()
+    last_image = _process_img(img.copy(), fg.copy(), bounds, config)
+    last_frame_path = (
+        (config.output_path / image_path.name)
+        .absolute()
+        .with_stem(image_path.stem + "_last_frame")
+        .with_suffix(".tiff")
+    )
+    util.save_img(last_frame_path, last_image)
+    foreground_image_path = (
+        (config.output_path / image_path.name)
+        .absolute()
+        .with_stem(image_path.stem + "_foreground")
+        .with_suffix(".tiff")
+    )
+    util.save_img(foreground_image_path, fg.astype(np.uint8) * 255)
 
     def make_frame(time):
         frame_no = int(round(time * fps))
-        if frame_no >= n_frames:
-            frame_no = n_frames - 1
+        if frame_no >= n_frames - 1:
+            return last_image
+        elif frame_no <= 1:
+            return first_image
+
         depth = depths[-frame_no]
         this_img = img.copy()
 
