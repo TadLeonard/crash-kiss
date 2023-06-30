@@ -57,16 +57,11 @@ def compare_background(img, background, threshold):
 
     foreground = light_enough.astype(np.uint8)
 
-    whack_hue = (hue >= 300) | (hue < 22)  # assumes a certain nature of bg artifacts
-    too_dim = lightness < 25  # 18 works; assumes subject is always bright
-    desaturated = saturation < 40
-    foreground = np.logical_and(~(whack_hue & too_dim & desaturated), light_enough).astype(np.uint8)
-
     foreground = foreground * 255
     foreground = cv2.erode(foreground, (3, 3))
     foreground = (cv2.GaussianBlur(foreground, (3, 3), 0) > 125).astype(np.uint8)
     foreground = fill_holes(foreground.astype(np.uint8))
-    foreground = cv2.erode(foreground, (3, 3), iterations=2)
+    foreground = cv2.erode(foreground, (3, 3), iterations=4)
 
     # Finally, if we have a colorful background check for a significant hue
     # difference. The same threshold is used for lightness and hue given
